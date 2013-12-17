@@ -8,7 +8,7 @@ The recommender system expects data in a comma-seperated value file (CSV) with f
 
     timestamp, sensor, value
 
-An example (randomly-generated, useless) dataset can be found in file `example.csv_`. The [pandas data analysis library](http://pandas.pydata.org/) supports several time formats, please see the [documentation](http://pandas.pydata.org/pandas-docs/dev/io.html#date-parsing-functions) for more details.
+An example (randomly-generated, useless) dataset can be found in file `example.csv`. The [pandas data analysis library](http://pandas.pydata.org/) supports several time formats, please see the [documentation](http://pandas.pydata.org/pandas-docs/dev/io.html#date-parsing-functions) for more details.
 
 
 Using the houseA and houseB datasets by T.L.M. van Kasteren et al.
