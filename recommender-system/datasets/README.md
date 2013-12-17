@@ -8,7 +8,7 @@ The recommender system expects data in a comma-seperated value file (CSV) with f
 
     timestamp, sensor, value
 
-An example (randomly-generated, useless) dataset can be found in file _example.csv_. The [pandas data analysis library](http://pandas.pydata.org/) supports several time formats, please see the [documentation](http://pandas.pydata.org/pandas-docs/dev/io.html#date-parsing-functions) for more details.
+An example (randomly-generated, useless) dataset can be found in file `example.csv_`. The [pandas data analysis library](http://pandas.pydata.org/) supports several time formats, please see the [documentation](http://pandas.pydata.org/pandas-docs/dev/io.html#date-parsing-functions) for more details.
 
 
 Using the houseA and houseB datasets by T.L.M. van Kasteren et al.
@@ -24,6 +24,6 @@ To convert these datasets to a CSV file in the required format:
 
 1. Download the zip archive from https://sites.google.com/site/tim0306/tlDatasets.zip
 2. Open zip archive and extract file tlDatasets/tlDatasets.mat to the current directory 
-3. Run `python converters/matlab.py tlDatasets.mat`
+3. Run `python converters/kasteren.py tlDatasets.mat`
 
 This will create two files "houseA.csv" and "houseB.csv".
