@@ -39,6 +39,18 @@ def plot_result(classifiers,results,measure,filename):
     plt.savefig(filename)
     plt.close() 
 
+
+def plot_accuracy_comparison(results, metric, filename):
+    plt.figure(figsize=(6, 6), dpi=300)
+    plt.ylabel(metric, fontsize=18)
+    plt.xlabel('# of recommendations shown', fontsize=18)
+    plt.plot(results)
+    plt.legend(legend=results.columns.values, loc="best")
+    if not metric == "# of recommendations":
+        plt.ylim(0.0, 1.0)
+    plt.savefig(filename)
+    plt.close()
+
 def plot_train_size(classifiers,sizes,results,xticks,measure,filename):
     plt.figure(figsize=(6,6),dpi=300)
     plt.subplots_adjust(bottom=0.15)

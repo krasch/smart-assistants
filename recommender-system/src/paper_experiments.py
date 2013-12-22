@@ -16,28 +16,16 @@ from classifiers.caching import PreviousItemCache
 import plot
 
 def compare_classifiers(dataset):
-    #print "Compare classifiers for dataset "+dataset.name
+    print "Compare classifiers for dataset "+dataset.name
     experiment=Experiment(dataset)
-    experiment.add_classifier(TemporalEvidencesClassifier(dataset.features,dataset.target_names),name="Our method")
+    #experiment.add_classifier(TemporalEvidencesClassifier(dataset.features,dataset.target_names),name="Our method")
     #experiment.add_classifier(TemporalEvidencesClassifier(dataset.features,dataset.target_names,cache=PreviousItemCache()),name="Cached")
-    experiment.add_classifier(NaiveBayesClassifier(dataset.features,dataset.target_names),name="Naive Bayes")
-    experiment.add_classifier(RandomClassifier(dataset.features,dataset.target_names),name="Random")
+    experiment.add_classifier(NaiveBayesClassifier(dataset.features, dataset.target_names), name="Naive Bayes")
+    experiment.add_classifier(RandomClassifier(dataset.features, dataset.target_names), name="Random")
     experiment.run(folds=10)
-    experiment.plot_results(["precision","recall","f1","num_predictions"])
-    print "recall,precision,f1"
-    experiment.print_results_latex(["recall","precision","f1","num_predictions"])
-    print "runtimes"
-    experiment.print_runtimes_latex(["train_time","test_time","test_time_ind"])
-
-    """ output the results as json data 
-    summarized_results={}
-    for m in ["precision","recall","f1"]:
-        summarized={name:experiment.results[name].summarize(m) for (name,cls) in experiment.classifiers}
-        only_averages={name:[avg for avg,std,CI in summarized[name]] for name in summarized}
-        summarized_results[m]=only_averages
-    summarized_results["cutoff"]=range(1,len(only_averages["Random"])+1) 
-    print json.dumps(summarized_results,sort_keys=True,indent=4, separators=(',', ': '))
-    """
+    #experiment.print_runtime_comparison()
+    #experiment.print_accuracy_comparison()
+    experiment.plot_accuracy_comparison()
 
 def compare_intervals(dataset):
     print "Comparing different intervals"
@@ -134,7 +122,7 @@ def training_size_experiment(dataset):
         test_data=numpy.array([True]*len(dataset.data))
         print train_size,train_time
         for cls_name,cls in experiment.classifiers:
-            r=experiment.run_with_classifier([(train_data,test_data)],cls)
+            r=experiment.__run_with_classifier__([(train_data,test_data)],cls)
             results[cls_name].append(r.summarize("f1")[0][0])
 
 
@@ -162,6 +150,6 @@ def training_size_experiment(dataset):
 #print len(mavlab.data)
 house=load_kasteren("houseA")
 compare_classifiers(house)
-compare_intervals(house)
+#compare_intervals(house)
 #compare_postprocess(houseA)
 #training_size_experiment(house)
