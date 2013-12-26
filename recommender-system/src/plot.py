@@ -108,3 +108,21 @@ def histogram(to_compare,data,filename):
     #plt.legend(tuple(to_compare),loc=0) 
     plt.savefig(filename)
     plt.close()   
+
+
+    """
+    xticks=None
+    if dataset.name=="houseA":
+       counts=[500,1000,1500,2000]
+       labels=["%i\n(%i days)"%(count,round(calculate_training_time(count))) for count in counts]
+       xticks=counts,labels
+    elif dataset.name=="houseB":
+       counts=[500,1000,1500,2000,2500]
+       labels=["%i\n(%i days)"%(count,round(calculate_training_time(count))) for count in counts]
+       xticks=counts,labels
+    plot.plot_train_size([cls_name for cls_name,cls in experiment.classifiers],train_sizes,results,xticks,"f1","../plots/%s/train_size.pdf"%dataset.name)
+    plot.plot_train_size([cls_name for cls_name,cls in experiment.classifiers],train_times,results,None,"f1","../plots/%s/train_time.pdf"%dataset.name)
+
+
+    #print json.dumps({"train_size":train_sizes,"F1":results,"xticks":xticks},sort_keys=True,indent=4, separators=(',', ': '))
+    """
