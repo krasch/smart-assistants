@@ -149,7 +149,7 @@ def evaluate_training_size(data):
 
 
 dataset = load_kasteren("houseA")
-#compare_classifiers(dataset)
+compare_classifiers(dataset)
 #evaluate_interval_settings(dataset)
 #evaluate_dynamic_cutoff(dataset)
-evaluate_training_size(dataset)
+#evaluate_training_size(dataset)

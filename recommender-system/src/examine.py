@@ -9,7 +9,7 @@ from data.mavlab import load_scikit as load_mavlab
 from classifiers.randomc import RandomClassifier
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
-from classifiers.metrics import multiple_predictions_scores,num_predictions
+from classifiers.metrics import multiple_predictions_scores,num_predictions, accuracy_metrics
 from classifiers.binners import StaticBinning
 from classifiers.metrics import confusion_matrix as calculate_confusion_matrix
 from classifiers.postprocess import dynamic_cutoff
@@ -17,11 +17,12 @@ from classifiers.caching import PreviousItemCache
 import plot
 
 def plot_evidences(dataset):
-   cls = TemporalEvidencesClassifier(dataset.features,dataset.target_names,binning_method=StaticBinning(bins=list(range(0,300,10))))
-   #cls=NaiveBayesClassifier(dataset.features,dataset.target_names)
+   #cls = TemporalEvidencesClassifier(dataset.features,dataset.target_names,binning_method=StaticBinning(bins=list(range(0,300,10))))
+   cls=NaiveBayesClassifier(dataset.features,dataset.target_names)
    cls = cls.fit(dataset.data, dataset.target)
-   plot.plot_evidences(cls)
-   #results=cls.predict(dataset.data)
+   #plot.plot_evidences(cls)
+   results=cls.predict(dataset.data[0:300])
+   accuracy_metrics(dataset.target[0:300], results, 10)
 
 def write_evidences(dataset):
    if not dataset.name=="houseA":
@@ -157,8 +158,8 @@ def scatter_conflict_theta(dataset):
 #dataset=load_mavlab()
 
 dataset=load_kasteren("houseA")   
-#write_evidences(dataset)
-scatter_conflict_theta(dataset)
+plot_evidences(dataset)
+#scatter_conflict_theta(dataset)
 #histogram_compare_methods(dataset)
 #confusion_matrix(dataset)
 #timeline(dataset)
