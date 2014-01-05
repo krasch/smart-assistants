@@ -21,8 +21,8 @@ def plot_evidences(dataset):
    cls=NaiveBayesClassifier(dataset.features,dataset.target_names)
    cls = cls.fit(dataset.data, dataset.target)
    #plot.plot_evidences(cls)
-   results=cls.predict(dataset.data[0:300])
-   accuracy_metrics(dataset.target[0:300], results, 10)
+   results=cls.predict(dataset.data)
+   accuracy_metrics(dataset.target, results)
 
 def write_evidences(dataset):
    if not dataset.name=="houseA":
