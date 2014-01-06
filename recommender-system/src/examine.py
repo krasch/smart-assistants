@@ -9,12 +9,12 @@ from data.mavlab import load_scikit as load_mavlab
 from classifiers.randomc import RandomClassifier
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
-from classifiers.metrics import multiple_predictions_scores,num_predictions, accuracy_metrics
+from classifiers.metrics import accuracy_metrics
 from classifiers.binners import StaticBinning
-from classifiers.metrics import confusion_matrix as calculate_confusion_matrix
 from classifiers.postprocess import dynamic_cutoff
 from classifiers.caching import PreviousItemCache
 import plot
+
 
 def plot_evidences(dataset):
    #cls = TemporalEvidencesClassifier(dataset.features,dataset.target_names,binning_method=StaticBinning(bins=list(range(0,300,10))))
@@ -22,7 +22,8 @@ def plot_evidences(dataset):
    cls = cls.fit(dataset.data, dataset.target)
    #plot.plot_evidences(cls)
    results=cls.predict(dataset.data)
-   accuracy_metrics(dataset.target, results)
+   metrics = accuracy_metrics(dataset.target, results)
+   print metrics
 
 def write_evidences(dataset):
    if not dataset.name=="houseA":
