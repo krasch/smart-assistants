@@ -17,8 +17,8 @@ import plot
 
 
 def plot_evidences(dataset):
-   #cls = TemporalEvidencesClassifier(dataset.features,dataset.target_names,binning_method=StaticBinning(bins=list(range(0,300,10))))
-   cls=NaiveBayesClassifier(dataset.features,dataset.target_names)
+   cls = TemporalEvidencesClassifier(dataset.features,dataset.target_names,binning_method=StaticBinning(bins=list(range(0,300,10))))
+   #cls=NaiveBayesClassifier(dataset.features,dataset.target_names)
    cls = cls.fit(dataset.data, dataset.target)
    #plot.plot_evidences(cls)
    results=cls.predict(dataset.data)

@@ -14,8 +14,7 @@ def test_true_positives():
     recommendations = [["D", "C", "B", "A", "E", "F", "G"]]
     expected = [0, 0, 0, 1, 1, 1, 1]
 
-    r = results_as_dataframe(targets, recommendations)
-    tp = AccuracyMetricsCalculator(r).true_positives("A")
+    tp = AccuracyMetricsCalculator(targets, recommendations).true_positives("A")
     assert_almost_equal(expected, tp["TP"].values)
 
 
@@ -24,8 +23,7 @@ def test_true_positives_not_included():
     recommendations = [["D", "C", "B", "O", "E", "F", "G"]]
     expected = [0, 0, 0, 0, 0, 0, 0]
 
-    r = results_as_dataframe(targets, recommendations)
-    tp = AccuracyMetricsCalculator(r).true_positives("A")
+    tp = AccuracyMetricsCalculator(targets, recommendations).true_positives("A")
     assert_almost_equal(expected, tp["TP"].values)
 
 
@@ -36,8 +34,7 @@ def test_true_positives_multiple():
                        ["D", "A", "C", "B", "E", "F", "G"]] #recs for second "A"
     expected = [0, 1, 1, 2, 2, 2, 2]
 
-    r = results_as_dataframe(targets, recommendations)
-    tp = AccuracyMetricsCalculator(r).true_positives("A")
+    tp = AccuracyMetricsCalculator(targets, recommendations).true_positives("A")
     assert_almost_equal(expected, tp["TP"].values)
 
 
@@ -50,8 +47,7 @@ def test_false_negatives():
     recommendations = [["D", "C", "B", "A", "E", "F", "G"]]
     expected = [1, 1, 1, 0, 0, 0, 0]
 
-    r = results_as_dataframe(targets, recommendations)
-    fn = AccuracyMetricsCalculator(r).false_negatives("A")
+    fn = AccuracyMetricsCalculator(targets, recommendations).false_negatives("A")
     assert_almost_equal(expected, fn["FN"].values)
 
 
@@ -60,8 +56,7 @@ def test_false_negatives_not_included():
     recommendations = [["D", "C", "B", "O", "E", "F", "G"]]
     expected = [1, 1, 1, 1, 1, 1, 1]
 
-    r = results_as_dataframe(targets, recommendations)
-    fn = AccuracyMetricsCalculator(r).false_negatives("A")
+    fn = AccuracyMetricsCalculator(targets, recommendations).false_negatives("A")
     assert_almost_equal(expected, fn["FN"].values)
 
 
@@ -72,8 +67,7 @@ def test_false_negatives_multiple():
                        ["D", "A", "C", "B", "E", "F", "G"]] #recs for second "A"
     expected = [2, 1, 1, 0, 0, 0, 0]
 
-    r = results_as_dataframe(targets, recommendations)
-    fn = AccuracyMetricsCalculator(r).false_negatives("A")
+    fn = AccuracyMetricsCalculator(targets, recommendations).false_negatives("A")
     assert_almost_equal(expected, fn["FN"].values)
 
 """
@@ -85,8 +79,8 @@ def test_false_positives():
     recommendations = [["D", "C", "B", "A", "E", "F", "G"]]
     expected = [0, 0, 0, 1, 1, 1, 1]
 
-    r = results_as_dataframe(targets, recommendations)
-    fp = AccuracyMetricsCalculator(r).false_positives("A")    #true target is "B", how often "A" was recommended instead
+    #true target is "B", how often "A" was recommended instead
+    fp = AccuracyMetricsCalculator(targets, recommendations).false_positives("A")
     assert_almost_equal(expected, fp["FP"].values)
 
 
@@ -95,8 +89,7 @@ def test_false_positives_not_included():
     recommendations = [["D", "C", "B", "O", "E", "F", "G"]]
     expected = [0, 0, 0, 0, 0, 0, 0]
 
-    r = results_as_dataframe(targets, recommendations)
-    fp = AccuracyMetricsCalculator(r).false_positives("A")
+    fp = AccuracyMetricsCalculator(targets, recommendations).false_positives("A")
     assert_almost_equal(expected, fp["FP"].values)
 
 
@@ -107,8 +100,7 @@ def test_false_positives_multiple():
                        ["D", "A", "C", "B", "E", "F", "G"]] #recs for second "B"
     expected = [0, 1, 1, 2, 2, 2, 2]
 
-    r = results_as_dataframe(targets, recommendations)
-    fp = AccuracyMetricsCalculator(r).false_positives("A")
+    fp = AccuracyMetricsCalculator(targets, recommendations).false_positives("A")
     assert_almost_equal(expected, fp["FP"].values)
 
 
@@ -123,8 +115,7 @@ def test_precision():
     #false_positives_expected = [0, 0, 0, 0, 0, 0, 0]
     expected = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]
 
-    r = results_as_dataframe(targets, recommendations)
-    calc = AccuracyMetricsCalculator(r)
+    calc = AccuracyMetricsCalculator(targets, recommendations)
     counts = pandas.concat([calc.true_positives("A"),
                            calc.false_negatives("A"),
                            calc.false_positives("A")],
@@ -140,8 +131,7 @@ def test_precision_not_included():
     #false_positives_expected = [0, 0, 0, 0, 0, 0, 0]
     expected = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-    r = results_as_dataframe(targets, recommendations)
-    calc = AccuracyMetricsCalculator(r)
+    calc = AccuracyMetricsCalculator(targets, recommendations)
     counts = pandas.concat([calc.true_positives("A"),
                            calc.false_negatives("A"),
                            calc.false_positives("A")],
@@ -159,8 +149,7 @@ def test_precision_multiple():
     #false_positives_expected = [1, 1, 1, 1, 1, 1, 1]
     expected = [0.0, 0.5, 0.5, 2.0/3.0, 2.0/3.0, 2.0/3.0, 2.0/3.0]
 
-    r = results_as_dataframe(targets, recommendations)
-    calc = AccuracyMetricsCalculator(r)
+    calc = AccuracyMetricsCalculator(targets, recommendations)
     counts = pandas.concat([calc.true_positives("A"),
                            calc.false_negatives("A"),
                            calc.false_positives("A")],
@@ -180,8 +169,7 @@ def test_recall():
     #false_negatives_expected = [1, 1, 1, 0, 0, 0, 0]
     expected = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]
 
-    r = results_as_dataframe(targets, recommendations)
-    calc = AccuracyMetricsCalculator(r)
+    calc = AccuracyMetricsCalculator(targets, recommendations)
     counts = pandas.concat([calc.true_positives("A"),
                            calc.false_negatives("A"),
                            calc.false_positives("A")],
@@ -197,8 +185,7 @@ def test_recall_not_included():
     #false_negatives_expected = [0, 0, 0, 0, 0, 0, 0]
     expected = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-    r = results_as_dataframe(targets, recommendations)
-    calc = AccuracyMetricsCalculator(r)
+    calc = AccuracyMetricsCalculator(targets, recommendations)
     counts = pandas.concat([calc.true_positives("A"),
                            calc.false_negatives("A"),
                            calc.false_positives("A")],
@@ -216,8 +203,7 @@ def test_recall_multiple():
     #false_negatives_expected = [2, 1, 1, 0, 0, 0, 0]
     expected = [0.0, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0]
 
-    r = results_as_dataframe(targets, recommendations)
-    calc = AccuracyMetricsCalculator(r)
+    calc = AccuracyMetricsCalculator(targets, recommendations)
     counts = pandas.concat([calc.true_positives("A"),
                            calc.false_negatives("A"),
                            calc.false_positives("A")],
@@ -258,7 +244,7 @@ def test_houseA():
     cls = NaiveBayesClassifier(dataset.features, dataset.target_names)
     cls = cls.fit(dataset.data, dataset.target)
     results = cls.predict(dataset.data)
-    metrics = accuracy_metrics(dataset.target, results)
+    metrics = AccuracyMetricsCalculator(dataset.target, results).calculate()
 
     assert_almost_equal(metrics["Precision"].values, expected_precision)
     assert_almost_equal(metrics["Recall"].values, expected_recall)

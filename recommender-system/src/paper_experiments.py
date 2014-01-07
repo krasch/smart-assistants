@@ -29,13 +29,13 @@ def compare_classifiers(data):
     """
     print "Compare classifiers for dataset " + data.name
     experiment = Experiment(data)
-    experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names), name="Our method")
+    #experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names), name="Our method")
     experiment.add_classifier(NaiveBayesClassifier(data.features, data.target_names), name="Naive Bayes")
     experiment.add_classifier(RandomClassifier(data.features, data.target_names), name="Random")
-    experiment.run(folds=10)
-    experiment.print_runtime_comparison()
-    experiment.print_accuracy_comparison()
-    experiment.plot_accuracy_comparison()
+    results = experiment.run(folds=10)
+    results.print_runtime_comparison()
+    results.print_accuracy_comparison()
+    #experiment.plot_accuracy_comparison()
 
 
 def evaluate_interval_settings(data):
@@ -65,9 +65,10 @@ def evaluate_interval_settings(data):
     for (name, bins) in intervals_to_test:
         experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names,
                                   binning_method=StaticBinning(bins=bins)), name=name)
-    experiment.run(folds=10)
-    experiment.print_runtime_comparison()
-    experiment.print_accuracy_comparison_at_cutoff(cutoff=1)
+
+    results = experiment.run(folds=10)
+    results.print_runtime_comparison()
+    results.print_accuracy_comparison_at_cutoff(cutoff=1)
 
 
 def evaluate_dynamic_cutoff(data):
@@ -77,11 +78,11 @@ def evaluate_dynamic_cutoff(data):
     @param data: The dataset used for evaluation.
     """
     print "Evaluating use of dynamic cutoff methods"
-    experiment=Experiment(data)
+    experiment = Experiment(data)
     methods_to_test = [("Fixed cutoff", None),
                        ("dynamic cutoff=4", dynamic_cutoff(1.0, 0.4, 4)),
                        ("dynamic cutoff=2", dynamic_cutoff(1.0, 0.4, 2))]
-    for (name, method) in methods_to_test:
+    for name, method in methods_to_test:
         experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names,
                                   postprocess=method), name=name)
     experiment.run(folds=10)
@@ -128,7 +129,7 @@ def evaluate_training_size(data):
     #the classifiers will be trained with increasingly larger training datasets, create those here
     train_sizes, train_times, train_datasets, test_datasets = divide_dataset()
 
-    #run the experiment
+    #run the experiment for each of thee created datasets
     results = defaultdict(list)
     for train_data, test_data in zip(train_datasets, test_datasets):
         experiment = initialize_experiment()
@@ -137,7 +138,7 @@ def evaluate_training_size(data):
             experiment.run_with_classifier(cls, [(train_data, test_data)])
         #store results for cutoff=1
         for metric in experiment.accuracy_stats:
-            results[metric].append(experiment.compare_classifiers_at_cutoff(metric, "Mean", cutoff=1).transpose())
+            results[metric].append(experiment.compare_accuracy_at_cutoff(metric, "Mean", cutoff=1).transpose())
 
     #add multi-index of training sizes and training times to the results
     results = {metric: add_index_to_results(result, train_sizes, train_times) for metric, result in results.items()}

@@ -20,10 +20,10 @@ def results_as_dataframe(true_targets, predicted_targets):
 class AccuracyMetricsCalculator():
     #todo documentation of class
 
-    def __init__(self, results):
-        self.results = results
+    def __init__(self, targets, recommendations):
+        self.results = results_as_dataframe(targets, recommendations)
 
-    def __unique_targets__(self):
+    def __unique_targets__(self): #todo
         occurring_actions = set(self.results.index.values)
         occurring_services = pandas.melt(self.results).dropna()["value"]
         occurring_services = set(occurring_services.unique())
@@ -116,7 +116,7 @@ class AccuracyMetricsCalculator():
         f = pandas.DataFrame({"F1": f}).fillna(0.0)
         return f
 
-    def metrics_for_target(self, target):
+    def calculate_for_target(self, target):
         """
         Calculate precision, recall and F1 for one target (= one possible user action)
         @param target: Which user action to calculate the metrics for.
@@ -138,7 +138,7 @@ class AccuracyMetricsCalculator():
         #add name of the target to the index, to prepare for merging the metrics for all targets
         metrics.index = pandas.MultiIndex.from_arrays([[target]*len(metrics),
                                                       [(i+1) for i in range(len(metrics.index))]],
-                                                      names=["target", "#Recs"])
+                                                      names=["target", "cutoff"])
 
         return metrics
 
@@ -150,7 +150,7 @@ class AccuracyMetricsCalculator():
         """
         #make one big matrix with the metrics for all targets
         targets = self.__unique_targets__()
-        metrics = pandas.concat([self.metrics_for_target(target) for target in targets])
+        metrics = pandas.concat([self.calculate_for_target(target) for target in targets])
 
         #count for each target how often the corresponding action actually occurred
         occurrences = pandas.TimeSeries(self.results.index.values).value_counts()
@@ -158,17 +158,13 @@ class AccuracyMetricsCalculator():
 
         #calculate the weighted average for each of the metrics
         #e.g.: weighted f1=((f1_target1*occurrences_target1)+...+f1_targetn*occurrences_targetn))/sum(occurrences)
-        fix_index = lambda g: g.reset_index().drop("#Recs", axis=1).set_index("target").reindex(targets).fillna(0.0)  #todo
+        fix_index = lambda g: g.reset_index().drop("cutoff", axis=1).set_index("target").reindex(targets).fillna(0.0)  #todo
         weighted_average_for_column = lambda col: numpy.average(col.values, weights=occurrences.values)
         weighted_average = lambda group: fix_index(group).apply(weighted_average_for_column)
-        metrics = metrics.groupby(level="#Recs").aggregate(weighted_average)
+        metrics = metrics.groupby(level="cutoff").aggregate(weighted_average)
 
         return metrics
 
-
-def accuracy_metrics(true_targets, predicted_targets):
-    r = results_as_dataframe(true_targets, predicted_targets)
-    return AccuracyMetricsCalculator(r).calculate()
 
 """
 def num_predictions(true_targets,predicted,max_cutoff):
