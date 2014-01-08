@@ -23,19 +23,19 @@ in more detail in:
 
 def compare_classifiers(data):
     """
-    Compare accuracy and runtimes of several classifiers for one dataset. Performs 10-fold cross-validation. Details
+    Compare quality and runtimes of several classifiers for one dataset. Performs 10-fold cross-validation. Details
     for this experiment can be found in the paper in Section 6.4 and in the dissertation in Section 5.5.4,
     @param data: The dataset on which to run the comparison.
     """
     print "Compare classifiers for dataset " + data.name
     experiment = Experiment(data)
     #experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names), name="Our method")
-    experiment.add_classifier(NaiveBayesClassifier(data.features, data.target_names), name="Naive Bayes")
+    #experiment.add_classifier(NaiveBayesClassifier(data.features, data.target_names), name="Naive Bayes")
     experiment.add_classifier(RandomClassifier(data.features, data.target_names), name="Random")
     results = experiment.run(folds=10)
     results.print_runtime_comparison()
-    results.print_accuracy_comparison()
-    #experiment.plot_accuracy_comparison()
+    results.print_quality_comparison()
+    #experiment.plot_quality_comparison()
 
 
 def evaluate_interval_settings(data):
@@ -68,7 +68,7 @@ def evaluate_interval_settings(data):
 
     results = experiment.run(folds=10)
     results.print_runtime_comparison()
-    results.print_accuracy_comparison_at_cutoff(cutoff=1)
+    results.print_quality_comparison_at_cutoff(cutoff=1)
 
 
 def evaluate_dynamic_cutoff(data):
@@ -86,7 +86,7 @@ def evaluate_dynamic_cutoff(data):
         experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names,
                                   postprocess=method), name=name)
     experiment.run(folds=10)
-    experiment.print_accuracy_comparison()
+    experiment.print_quality_comparison()
 
 
 
@@ -137,14 +137,14 @@ def evaluate_training_size(data):
         for cls in experiment.classifiers:
             experiment.run_with_classifier(cls, [(train_data, test_data)])
         #store results for cutoff=1
-        for metric in experiment.accuracy_stats:
-            results[metric].append(experiment.compare_accuracy_at_cutoff(metric, "Mean", cutoff=1).transpose())
+        for metric in experiment.quality_stats:
+            results[metric].append(experiment.compare_quality_at_cutoff(metric, "Mean", cutoff=1).transpose())
 
     #add multi-index of training sizes and training times to the results
     results = {metric: add_index_to_results(result, train_sizes, train_times) for metric, result in results.items()}
 
     #print out results
-    for metric in experiment.accuracy_stats:
+    for metric in experiment.quality_stats:
         print metric
         print results[metric]
 

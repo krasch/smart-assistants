@@ -9,7 +9,7 @@ from data.mavlab import load_scikit as load_mavlab
 from classifiers.randomc import RandomClassifier
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
-from classifiers.metrics import accuracy_metrics
+from classifiers.metrics import QualityMetricsCalculator
 from classifiers.binners import StaticBinning
 from classifiers.postprocess import dynamic_cutoff
 from classifiers.caching import PreviousItemCache
@@ -22,7 +22,7 @@ def plot_evidences(dataset):
    cls = cls.fit(dataset.data, dataset.target)
    #plot.plot_evidences(cls)
    results=cls.predict(dataset.data)
-   metrics = accuracy_metrics(dataset.target, results)
+   metrics = QualityMetricsCalculator(dataset.target, results).calculate()
    print metrics
 
 def write_evidences(dataset):
