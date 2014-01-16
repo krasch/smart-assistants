@@ -26,6 +26,9 @@ def confidence_interval(data, alpha=0.1):
 
 
 class Experiment:
+    """
+    Class for performing cross-validation of several classifiers on one dataset.
+    """
 
     def __init__(self, dataset):
         self.dataset = dataset
@@ -39,8 +42,8 @@ class Experiment:
     def run_with_classifier(self, cls, data_for_folds):
         """
         @param data_for_folds: Contains one list of True/False values for each of the folds to be run. Each list states
-                               for every item of the dataset, whether the item is in the current fold part of the
-                               training dataset or the test dataset.
+        for every item of the dataset, whether the item is in the current fold part of the training dataset or the
+        test dataset.
         @param cls: Classifier to use in the experiment.
         @return: Measurements for quality and runtime metrics.
         """
@@ -125,6 +128,9 @@ class Experiment:
 
 
 class Results():
+    """
+    Class that contains the results of a cross-validation experiment. Allows to print and to plot results.
+    """
 
     def __init__(self, classifiers, quality_stats, runtime_stats):
         self.classifiers = classifiers
@@ -148,18 +154,6 @@ class Results():
         comparison = comparison.rename(columns={old: new for old, new in zip(relevant_columns, new_column_names)})
         return comparison
 
-    #def compare_quality_at_cutoff(self, metric, statistics, cutoff):
-        """
-        Same as compare_classifiers, but only give results for the one selected cutoff, i.e. when the user is shown
-        exactly #cutoff recommendations.
-        @param metric: Name of one of the runtime or one of the quality metrics.
-        @param statistics: Which statistic to compare (Mean, Standard deviation, Confidence interval)
-        @param cutoff: The cutoff for which to print the results
-        @return: A pandas dataframe with one row for every classifier and only one column with the calculated statistic
-                 for the given metric at the given cutoff for each of the classifiers.
-        """
-    #    return pandas.DataFrame(self.compare_quality(metric, statistics).loc[cutoff], columns=[metric])
-
     def print_quality_comparison(self):
         """
         For each of the quality metrics, print a table of confidence intervals. One column for each tested classifier
@@ -170,21 +164,17 @@ class Results():
             print "Results for %s" % metric
             print self.compare_quality(metric, "Confidence interval")
 
-    """
     def print_quality_comparison_at_cutoff(self, cutoff):
-        ""
+        """
         Print one shared table for all of the quality metrics. One row for each tested classifier, one column for each
-        calculated runtime metric. Print only results for some given cutoff, i.e. when the user is shown  #cutoff
-        recommendations.
+        calculated runtime metric. Print only results for some given cutoff.
         @param cutoff: The cutoff for which to print the results.
         @return:
-        ""
-        #statistics_for_cutoff = lambda metric: self.compare_quality_at_cutoff(metric, "Confidence interval", cutoff)
-        #df = pandas.concat([pandas.DataFrame(statistics_for_cutoff(metric), columns=[metric])
-        #                   for metric in quality_metrics], axis=1)
-        #print df
-        #print self.compare_quality_at_cutoff(cutoff)
-    """
+        """
+        comparison = {metric: self.compare_quality(metric, "Confidence interval").loc[cutoff]
+                      for metric in quality_metrics}
+        comparison = pandas.DataFrame(comparison)[quality_metrics]
+        print comparison
 
     def print_runtime_comparison(self):
         """

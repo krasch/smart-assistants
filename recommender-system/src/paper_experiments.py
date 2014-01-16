@@ -1,10 +1,9 @@
-from collections import defaultdict
-
 import numpy
 import pandas
 
 from data.kasteren import load_scikit as load_kasteren
-from experiment import Experiment
+from experiment import Experiment, Results
+from classifiers.metrics import quality_metrics
 from classifiers.randomc import RandomClassifier
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
@@ -18,6 +17,7 @@ This file contains experiments for evaluating the proposed recommender system. T
 in more detail in:
 - the accompanying paper (todo link)
 - my dissertation (http://www.diva-portal.org/smash/record.jsf?pid=diva2:650328)
+Each method also contains references to the relevant sections in paper/dissertation.
 """
 
 
@@ -29,8 +29,8 @@ def compare_classifiers(data):
     """
     print "Compare classifiers for dataset " + data.name
     experiment = Experiment(data)
-    #experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names), name="Our method")
-    #experiment.add_classifier(NaiveBayesClassifier(data.features, data.target_names), name="Naive Bayes")
+    experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names), name="Our method")
+    experiment.add_classifier(NaiveBayesClassifier(data.features, data.target_names), name="Naive Bayes")
     experiment.add_classifier(RandomClassifier(data.features, data.target_names), name="Random")
     results = experiment.run(folds=10)
     results.print_runtime_comparison()
@@ -82,11 +82,12 @@ def evaluate_dynamic_cutoff(data):
     methods_to_test = [("Fixed cutoff", None),
                        ("dynamic cutoff=4", dynamic_cutoff(1.0, 0.4, 4)),
                        ("dynamic cutoff=2", dynamic_cutoff(1.0, 0.4, 2))]
+
     for name, method in methods_to_test:
         experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names,
                                   postprocess=method), name=name)
-    experiment.run(folds=10)
-    experiment.print_quality_comparison()
+    results = experiment.run(folds=10)
+    results.print_quality_comparison()
 
 
 
@@ -126,31 +127,40 @@ def evaluate_training_size(data):
                                                  names=["Size of dataset", "Elapsed time (days)"])
         return df
 
+
+
     #the classifiers will be trained with increasingly larger training datasets, create those here
     train_sizes, train_times, train_datasets, test_datasets = divide_dataset()
 
-    #run the experiment for each of thee created datasets
-    results = defaultdict(list)
+    #run the experiment for each of the created datasets
+    results = []
     for train_data, test_data in zip(train_datasets, test_datasets):
         experiment = initialize_experiment()
-        #run only one fold for this data for each of the classifiers
-        for cls in experiment.classifiers:
-            experiment.run_with_classifier(cls, [(train_data, test_data)])
-        #store results for cutoff=1
-        for metric in experiment.quality_stats:
-            results[metric].append(experiment.compare_quality_at_cutoff(metric, "Mean", cutoff=1).transpose())
+        #run with all defined classifiers
+        stats = [experiment.run_with_classifier(cls, [(train_data, test_data)])
+                 for cls in experiment.classifiers]
+        #combine results of all classifiers for this training dataset, keep only results for cutoff=1
+        quality_stats = pandas.concat([quality for quality, runtime in stats], axis=1).loc[1]
+        results.append(quality_stats)
 
-    #add multi-index of training sizes and training times to the results
-    results = {metric: add_index_to_results(result, train_sizes, train_times) for metric, result in results.items()}
 
-    #print out results
-    for metric in experiment.quality_stats:
+    #make one big matrix with all results and add multi-index of training sizes and training times
+    results = pandas.concat(results, axis=1).transpose()
+    results.index = pandas.MultiIndex.from_tuples(zip(train_sizes, train_times),
+                                                 names=["Size of dataset", "Elapsed time (days)"])
+
+    #print confidence intervals for each of the metrics
+    interesting_columns = lambda metric: [(cls.name,metric, "Confidence interval") for cls in experiment.classifiers]
+    for metric in quality_metrics:
+        r = results[interesting_columns(metric)]
+        r.columns = [cls.name for cls in experiment.classifiers]
         print metric
-        print results[metric]
+        print r
+
 
 
 dataset = load_kasteren("houseA")
-compare_classifiers(dataset)
+#compare_classifiers(dataset)
 #evaluate_interval_settings(dataset)
 #evaluate_dynamic_cutoff(dataset)
-#evaluate_training_size(dataset)
+evaluate_training_size(dataset)
