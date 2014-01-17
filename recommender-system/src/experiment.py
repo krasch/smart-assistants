@@ -1,5 +1,6 @@
 from datetime import datetime
 from math import sqrt
+import os
 
 from sklearn.cross_validation import KFold
 from scipy import stats as scipy_stats
@@ -10,6 +11,7 @@ from classifiers.metrics import QualityMetricsCalculator, runtime_metrics, quali
 import plot
 
 calculated_stats = ["Mean", "Std deviation", "Confidence interval"]
+
 
 def confidence_interval(data, alpha=0.1):
     """
@@ -188,7 +190,7 @@ class Results():
         comparison = comparison.rename(columns={old: new for old, new in zip(relevant_columns, new_column_names)})
         print comparison
 
-    def plot_quality_comparison(self):
+    def plot_quality_comparison(self, plot_config):
         """
         For each of the quality metrics, generate an XY-line-plot with one line for each classifier. The X-axis is the
         number of recommendations that are shown to the user, the Y-axis is the metric of interest. Uses the means of
@@ -196,7 +198,7 @@ class Results():
         @return:
         """
         for metric in quality_metrics:
-            results = self.compare_classifiers(metric, "Mean")
-            plot.plot_quality_comparison(results, metric, "../plots/houseA/%s.pdf" % metric)
+            results = self.compare_quality(metric, "Mean")
+            plot.plot_quality_comparison(results, metric, plot_config)
 
 

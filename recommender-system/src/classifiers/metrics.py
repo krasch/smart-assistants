@@ -16,6 +16,7 @@ def results_as_dataframe(user_actions, recommendations):
     """
     results = pandas.DataFrame(recommendations, index=pandas.Index(user_actions, name="Actual action"))
     results.columns = [(r+1) for r in range(len(results.columns))]
+    results = results.transpose().transpose()
     return results
 
 

@@ -1,9 +1,11 @@
+import  os
+
 import numpy
 import pandas
 
 from data.kasteren import load_scikit as load_kasteren
-from experiment import Experiment, Results
-from classifiers.metrics import quality_metrics
+from experiment import Experiment
+from classifiers.metrics import quality_metrics, results_as_dataframe
 from classifiers.randomc import RandomClassifier
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
@@ -21,6 +23,11 @@ Each method also contains references to the relevant sections in paper/dissertat
 """
 
 
+#store plots in ../plots/
+plot_directory = os.path.join(os.pardir, "plots")
+img_type = "pdf"
+
+
 def compare_classifiers(data):
     """
     Compare quality and runtimes of several classifiers for one dataset. Performs 10-fold cross-validation. Details
@@ -33,9 +40,12 @@ def compare_classifiers(data):
     experiment.add_classifier(NaiveBayesClassifier(data.features, data.target_names), name="Naive Bayes")
     experiment.add_classifier(RandomClassifier(data.features, data.target_names), name="Random")
     results = experiment.run(folds=10)
+
     results.print_runtime_comparison()
     results.print_quality_comparison()
-    #experiment.plot_quality_comparison()
+
+    plot_conf = plot.plot_config(plot_directory, sub_dirs=[data.name], img_type=img_type)
+    results.plot_quality_comparison(plot_conf)
 
 
 def evaluate_interval_settings(data):
@@ -71,6 +81,50 @@ def evaluate_interval_settings(data):
     results.print_quality_comparison_at_cutoff(cutoff=1)
 
 
+def scatter_conflict_uncertainty(data):
+    """
+    Scatter conflict versus uncertainty at different cutoffs to find regions of uncertainty/conflict where the algorithm
+    is more/less successful. Further details for this experiment can be found in the paper in Section 6.6 and the
+    dissertation in Section 5.5.7.
+    @param data: The dataset used for the evaluation
+    @return:
+    """
+
+    #run the classifier on the whole dataset
+    cls = TemporalEvidencesClassifier(dataset.features,dataset.target_names)
+    cls = cls.fit(dataset.data, dataset.target)
+    results = cls.predict(dataset.data,include_conflict_theta=True)
+
+    #extract conflict and uncertainty and convert recommendations to pandas representation
+    recommendations, conflict, uncertainty = zip(*results)
+    results = results_as_dataframe(dataset.target, list(recommendations))
+
+    #for each row, mark correct recommendations with "1", false recommendations with "0"
+    find_matches_in_row = lambda row: [1 if col == row.name else 0 for col in row]
+    results = results.apply(find_matches_in_row, axis=1)
+
+    #set uncertainty and conflict as multi-index
+    results.index = pandas.MultiIndex.from_tuples(zip(conflict, uncertainty),
+                                                  names=["Conflict", "Uncertainty"])
+
+
+    #found_within: the correct service was found within X recommendations
+    #-> apply cumulative sum on each row so that the "1" marker is set for all columns after it first appears
+    found_within = results.cumsum(axis=1)
+    #create one plot for each cutoff
+    conf = plot.plot_config(plot_directory, sub_dirs=[data.name, "scatter"],
+                            prefix="found_within_", img_type=img_type)
+    plot.conflict_uncertainty_scatter(found_within, conf)
+
+
+    #not found withing: the correct service was not found within X recommendations, is the reverse of found_within
+    not_found_within = found_within.apply(lambda col: 1-col)
+    #create one plot for each cutoff
+    conf = plot.plot_config(plot_directory, sub_dirs=[data.name, "scatter"],
+                            prefix="not_found_within_", img_type=img_type)
+    plot.conflict_uncertainty_scatter(not_found_within, conf)
+
+
 def evaluate_dynamic_cutoff(data):
     """
     Evaluates the benefit of dynamic cutoff methods, i.e. show less recommendations if uncertainty and conflict are low.
@@ -88,7 +142,6 @@ def evaluate_dynamic_cutoff(data):
                                   postprocess=method), name=name)
     results = experiment.run(folds=10)
     results.print_quality_comparison()
-
 
 
 def evaluate_training_size(data):
@@ -149,18 +202,26 @@ def evaluate_training_size(data):
     results.index = pandas.MultiIndex.from_tuples(zip(train_sizes, train_times),
                                                  names=["Size of dataset", "Elapsed time (days)"])
 
-    #print confidence intervals for each of the metrics
+    #print confidence intervals for interesting metrics
     interesting_columns = lambda metric: [(cls.name,metric, "Confidence interval") for cls in experiment.classifiers]
-    for metric in quality_metrics:
+    for metric in ["Precision", "Recall", "F1"]:
         r = results[interesting_columns(metric)]
         r.columns = [cls.name for cls in experiment.classifiers]
         print metric
         print r
 
+    #plot means for interesting metrics
+    plot_conf = plot.plot_config(plot_directory, sub_dirs=[data.name], prefix="trainsize_", img_type=img_type)
+    interesting_columns = lambda metric: [(cls.name, metric, "Mean") for cls in experiment.classifiers]
+    for metric in ["Precision", "Recall", "F1"]:
+        r = results[interesting_columns(metric)]
+        r.columns = [cls.name for cls in experiment.classifiers]
+        plot.plot_train_size(r, metric, plot_conf)
 
 
 dataset = load_kasteren("houseA")
 #compare_classifiers(dataset)
 #evaluate_interval_settings(dataset)
+#scatter_conflict_uncertainty(dataset)
 #evaluate_dynamic_cutoff(dataset)
 evaluate_training_size(dataset)

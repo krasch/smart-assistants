@@ -1,5 +1,30 @@
+import os
+
 import matplotlib.pyplot as plt
-from matplotlib.font_manager import FontProperties
+
+
+def plot_config(base_dir, sub_dirs=[], prefix="", img_type="pdf"):
+    """
+    Configure where plots should be stored and which file type should be used.
+    @param base_dir: The base dir where all plots should be stored, e.g. ../plots
+    @param sub_dirs: A list of dirs that will be concatenated to create the actual plot dir,
+    e.g. sub_dirs=["houseA","scatter"] and base_dir="../plots", the images will be stored in "../plots/houseA/scatter".
+    @param prefix: A prefix to append to each plot file name.
+    @param img_type: The file type to use for storing the plot image, must be supported by pyplot.
+    @return: A function that can be called to get the full path for a plot file.
+    """
+    plot_dir = base_dir
+    for sub_dir in sub_dirs:
+        plot_dir = os.path.join(plot_dir, sub_dir)
+
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
+
+    def full_plot_path(name):
+        prefixed_name = "%s%s.%s" %(prefix, str(name), img_type)
+        return os.path.join(plot_dir, prefixed_name)
+
+    return full_plot_path
 
 
 def plot_evidences(classifier):
@@ -17,77 +42,76 @@ def plot_evidences(classifier):
         plt.savefig("../plots/"+source.source_name()+".pdf")
         plt.close()   
 
-def plot_result(classifiers,results,measure,filename):
-    plt.figure(figsize=(6,6),dpi=300)
-    plt.ylabel(measure,fontsize=18)
-    plt.xlabel('Number of recommendations',fontsize=18)    
-    legend=[]
-    colors=["#6dad22","#4e88d8","#db6d49","b","g","r","c","m","y"]
-    markers=["o","d","*","^","o","o"]
-    for (i,(cls_name,cls)) in enumerate(classifiers):
-        y=[avg for (avg,std,CI) in results[cls_name].summarize(measure)]
-        x=range(1,len(y)+1)
-        plt.plot(x,y,color=colors[i],marker=markers[i],markersize=10)
-        legend.append(cls_name)
-    fontP = FontProperties()
-    fontP.set_size(18)
-    plt.legend(tuple(legend),loc=4,prop=fontP) 
-    plt.xlim(1,14) 
-    if not measure=="num_predictions":
-       plt.ylim(0,1.0)
-    plt.xticks(range(2,16,2),range(2,16,2), fontsize=18) 
-    plt.savefig(filename)
-    plt.close() 
 
-
-def plot_accuracy_comparison(results, metric, filename):
+def plot_quality_comparison(results, metric, full_plot_path):
+    """
+    Create a lineplot, with one line for every evaluated classifier, showing the measured metric for this classifier.
+    @param results: A pandas dataframe with one column for every classifier, containing measurements for the metric.
+    @param metric: The metric to plot.
+    @param full_plot_path: A function that can take a local file name and give back the full path to that file,
+    @return: None
+    """
     plt.figure(figsize=(6, 6), dpi=300)
     plt.ylabel(metric, fontsize=18)
-    plt.xlabel('# of recommendations shown', fontsize=18)
-    plt.plot(results)
-    plt.legend(legend=results.columns.values, loc="best")
+    plt.xlabel('recommendation cutoff', fontsize=18)
     if not metric == "# of recommendations":
         plt.ylim(0.0, 1.0)
-    plt.savefig(filename)
+    plt.plot(results, marker=".")
+    plt.legend(tuple(results.columns.values), loc=4)
+    plt.savefig(full_plot_path(metric))
     plt.close()
 
-def plot_train_size(classifiers,sizes,results,xticks,measure,filename):
-    plt.figure(figsize=(6,6),dpi=300)
+
+def plot_train_size(results, metric, full_plot_path):
+    """
+    Create a lineplot, that shows how training size influences the given metric, with one line for every evaluated
+    classifier.
+    @param results: A pandas dataframe with one column for every classifier, containing measurements for the metric. The
+    dataframe should have a multiIndex consisting of a tuple (size of training data, elapsed time).
+    @param metric: The name of the metric that is to plot.
+    @param full_plot_path:  A function that can take a local file name and give back the full path to that file.
+    @return: None
+    """
+    #only want to have elapsed time as an index
+    results.index = results.index.droplevel(0)
+
+    plt.figure(figsize=(6, 6), dpi=300)
     plt.subplots_adjust(bottom=0.15)
-    plt.ylabel(measure,fontsize=18)
-    plt.xlabel('Size of training data',fontsize=18)   
-    legend=[]
-    colors=["#6dad22","#4e88d8","#db6d49","b","g","r","c","m","y"]
-    markers=["o","d","*","^","o","o"]
-    for (i,cls_name) in enumerate(classifiers):
-        plt.plot(sizes,results[cls_name],color=colors[i],marker=markers[i],markersize=10)
-        legend.append(cls_name)
-    fontP = FontProperties()
-    fontP.set_size(18)
-    plt.legend(tuple(legend),loc=4,prop=fontP) 
-    if not measure=="num_predictions":
-       plt.ylim(0,1.0)
-    plt.xlim(sizes[0],sizes[-1])
-    if not xticks is None:
-       plt.xticks(xticks[0],xticks[1]) 
-    plt.savefig(filename)
-    plt.close()  
+    plt.ylabel(metric, fontsize=18)
+    plt.xlabel('Elapsed training time (days)', fontsize=18)
+    if not metric == "# of recommendations":
+        plt.ylim(0.0, 1.0)
+    plt.plot(results, marker=".")
+    plt.legend(tuple(results.columns.values), loc=2)
+    plt.savefig(full_plot_path(metric))
+    plt.close()
 
 
-def conflict_theta_scatter(data,base_filename):
-    for (cutoff,d) in enumerate(data):
-        plt.figure(figsize=(6,6),dpi=300)
-        conflict_data=[conflict for (conflict,theta) in d]
-        theta_data=[theta for (conflict,theta) in d]
-        plt.plot(conflict_data,theta_data,'x',color="#6dad22")
-        plt.xticks([0.0,0.5,1.0],[0.0,0.5,1.0], fontsize=18)
-        plt.yticks([0.5,1.0],[0.5,1.0], fontsize=18)
-        plt.xlabel("conflict",fontsize=18)
-        plt.ylabel("uncertainty",fontsize=18)
-        plt.xlim(0,1.0) 
-        plt.ylim(0,1.0) 
-        plt.savefig("%s%d.eps"%(base_filename,cutoff+1))
+def conflict_uncertainty_scatter(results, full_plot_path):
+    """
+    Create scatterplots of conflict vs uncertainty to be able to identify regions where the algorithm is more/less
+    successful.
+    @param results: A pandas dataframe with one column for each interesting cutoff. Each "1" in a column will be plotted
+    as one cross in the scatterplot for this column, "0" values are ignored.
+    @param full_plot_path: A function that can take a local file name and give back the full path to that file
+    @return: None
+    """
+
+    #one scatterplot for each columnt
+    for cutoff in results.columns:
+        r = results[results[cutoff] == 1]
+        conflict, uncertainty = zip(*r.index.tolist())
+        plt.plot(conflict, uncertainty, 'x', color="#6dad22")
+        plt.xticks([0.0, 0.5, 1.0], [0.0, 0.5, 1.0], fontsize=18)
+        plt.yticks([0.5, 1.0], [0.5, 1.0], fontsize=18)
+        plt.xlabel("conflict", fontsize=18)
+        plt.ylabel("uncertainty", fontsize=18)
+        plt.xlim(0, 1.0)
+        plt.ylim(0, 1.0)
+        f = full_plot_path(cutoff)
+        plt.savefig(full_plot_path(cutoff))
         plt.close()
+
 
 def histogram(to_compare,data,filename):
     bar_width = 0.75       
@@ -108,21 +132,3 @@ def histogram(to_compare,data,filename):
     #plt.legend(tuple(to_compare),loc=0) 
     plt.savefig(filename)
     plt.close()   
-
-
-    """
-    xticks=None
-    if dataset.name=="houseA":
-       counts=[500,1000,1500,2000]
-       labels=["%i\n(%i days)"%(count,round(calculate_training_time(count))) for count in counts]
-       xticks=counts,labels
-    elif dataset.name=="houseB":
-       counts=[500,1000,1500,2000,2500]
-       labels=["%i\n(%i days)"%(count,round(calculate_training_time(count))) for count in counts]
-       xticks=counts,labels
-    plot.plot_train_size([cls_name for cls_name,cls in experiment.classifiers],train_sizes,results,xticks,"f1","../plots/%s/train_size.pdf"%dataset.name)
-    plot.plot_train_size([cls_name for cls_name,cls in experiment.classifiers],train_times,results,None,"f1","../plots/%s/train_time.pdf"%dataset.name)
-
-
-    #print json.dumps({"train_size":train_sizes,"F1":results,"xticks":xticks},sort_keys=True,indent=4, separators=(',', ': '))
-    """
