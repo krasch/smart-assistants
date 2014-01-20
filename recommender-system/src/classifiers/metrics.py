@@ -16,7 +16,6 @@ def results_as_dataframe(user_actions, recommendations):
     """
     results = pandas.DataFrame(recommendations, index=pandas.Index(user_actions, name="Actual action"))
     results.columns = [(r+1) for r in range(len(results.columns))]
-    results = results.transpose().transpose()
     return results
 
 
@@ -70,6 +69,17 @@ class QualityMetricsCalculator():
         r = pandas.DataFrame(r.cumsum(axis=0), columns=["TP"]).applymap(float)
         r.index.name = "cutoff"
         return r
+
+    def true_positives_for_all(self):
+        """
+        Create a matrix that contains information about true positives for all possible actions.
+        @return: A pandas with one column for each action, first row lists #TP at cutoff "1", the second row at
+        cutoff "2", etc.
+        """
+        tp = [self.true_positives(action )for action in self.__unique_actions__()]
+        tp = pandas.concat(tp, axis=1)
+        tp.columns = self.__unique_actions__()
+        return tp
 
     def false_negatives(self, action):
         """
@@ -207,16 +217,28 @@ class QualityMetricsCalculator():
         metrics["# of recommendations"] = self.number_of_recommendations()
         return metrics
 
+    def confusion_matrix(self):
+        """
+        Calculate a confusion matrix: for each action count how often each service was recommended
+        @return: A pandas dataframe, with one row for each possible action and one row for each possible
+        service recommendation. Each matrix item counts how often the service was recommended when the action happened.
+        """
+        cutoff = 1   #only makes sense for cutoff=1
 
-"""
-def confusion_matrix(true_actions,predicted_actions):
-    labels=unique_labels(true_actions,predicted_actions,1)
-    matrix = numpy.zeros(shape=(len(labels),len(labels)),dtype=numpy.int)
-    for (actual,predictions) in zip(true_actions,predicted_actions):
-        pred=predictions[0]
-        matrix[labels[actual]][labels[pred]]+=1
-    return (sorted(labels.keys()),matrix)
-"""
- 
-                
+        def confusions_for_action(action):
+            r = self.results[self.results.index == action][cutoff]
+            return r.groupby(r).count()
+
+        actions = self.__unique_actions__()
+        matrix = [confusions_for_action(action) for action in actions]
+        matrix = pandas.concat(matrix, axis=1).reindex(actions).transpose()
+        matrix.index = actions
+        matrix = matrix.reindex(actions).fillna(0)
+        matrix.index.name = "Actual action"
+
+        return matrix
+
+
+
+
                

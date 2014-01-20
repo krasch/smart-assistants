@@ -93,7 +93,7 @@ def scatter_conflict_uncertainty(data):
     #run the classifier on the whole dataset
     cls = TemporalEvidencesClassifier(dataset.features,dataset.target_names)
     cls = cls.fit(dataset.data, dataset.target)
-    results = cls.predict(dataset.data,include_conflict_theta=True)
+    results = cls.predict(dataset.data, include_conflict_theta=True)
 
     #extract conflict and uncertainty and convert recommendations to pandas representation
     recommendations, conflict, uncertainty = zip(*results)
@@ -169,7 +169,7 @@ def evaluate_training_size(data):
 
     def initialize_experiment():
         experiment = Experiment(data)
-        experiment.add_classifier(TemporalEvidencesClassifier(dataset.features, dataset.target_names), name="Our method")
+        #experiment.add_classifier(TemporalEvidencesClassifier(dataset.features, dataset.target_names), name="Our method")
         experiment.add_classifier(NaiveBayesClassifier(data.features, data.target_names), name="Naive Bayes")
         experiment.add_classifier(RandomClassifier(data.features, data.target_names), name="Random")
         return experiment

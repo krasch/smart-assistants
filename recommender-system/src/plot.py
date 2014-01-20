@@ -27,28 +27,37 @@ def plot_config(base_dir, sub_dirs=[], prefix="", img_type="pdf"):
     return full_plot_path
 
 
-def plot_evidences(classifier):
-    bins=classifier.binning_method.bins
-    for source in classifier.sources.values():
-        observations_by_target=dict()
-        for t,target in enumerate(classifier.target_names):
-            observations_by_target[target]=[source.temporal_counts[b][t] for b in range(len(bins))]
-        observed_sorted=sorted(observations_by_target,key=lambda k:sum(observations_by_target[k]),reverse=True)[0:5]  #sort by sum of counts
-        for observed in observed_sorted:
-            plt.plot(bins,observations_by_target[observed])
-        plt.xlabel("Time since setting changed [seconds]")
-        plt.ylabel("Observed actions (smoothed)")
-        plt.legend(observed_sorted) 
-        plt.savefig("../plots/"+source.source_name()+".pdf")
-        plt.close()   
+def plot_observations(source, observations, plot_path, plot_best=10):
+    """
+    Show which actions typically follow a given user action.
+    @param source: The name of the last user action.
+    @param observations: A pandas dataframe with one column for each following user action and one row for each bin
+    used by the classifier. Each item in the matrix describes how often a user action has been observed in each bin.
+    @param plot_path: function that can take a local file name and give back the full path to that file,
+    @param plot_best: Only the plot-best number of actions with the most total number of observations in these bins will
+    be shown in the resulting plot.
+    @return:
+    """
+    #keep only actions with highest numbers of observations
+    observations_per_action = observations.sum()
+    observations_per_action.sort(ascending=False)
+    most_observations = observations_per_action.index[0:plot_best]
+    observations = observations[most_observations]
+
+    #perform the plotting
+    plt.figure()
+    observations.plot()
+    plt.xlabel("Time since setting changed [seconds]")
+    plt.ylabel("Observed actions (smoothed)")
+    plt.savefig(plot_path(source))
 
 
-def plot_quality_comparison(results, metric, full_plot_path):
+def plot_quality_comparison(results, metric, plot_path):
     """
     Create a lineplot, with one line for every evaluated classifier, showing the measured metric for this classifier.
     @param results: A pandas dataframe with one column for every classifier, containing measurements for the metric.
     @param metric: The metric to plot.
-    @param full_plot_path: A function that can take a local file name and give back the full path to that file,
+    @param plot_path: A function that can take a local file name and give back the full path to that file,
     @return: None
     """
     plt.figure(figsize=(6, 6), dpi=300)
@@ -56,20 +65,20 @@ def plot_quality_comparison(results, metric, full_plot_path):
     plt.xlabel('recommendation cutoff', fontsize=18)
     if not metric == "# of recommendations":
         plt.ylim(0.0, 1.0)
-    plt.plot(results, marker=".")
+    results.plot(marker=".", colormap="prism")
     plt.legend(tuple(results.columns.values), loc=4)
-    plt.savefig(full_plot_path(metric))
+    plt.savefig(plot_path(metric))
     plt.close()
 
 
-def plot_train_size(results, metric, full_plot_path):
+def plot_train_size(results, metric, plot_path):
     """
     Create a lineplot, that shows how training size influences the given metric, with one line for every evaluated
     classifier.
     @param results: A pandas dataframe with one column for every classifier, containing measurements for the metric. The
     dataframe should have a multiIndex consisting of a tuple (size of training data, elapsed time).
     @param metric: The name of the metric that is to plot.
-    @param full_plot_path:  A function that can take a local file name and give back the full path to that file.
+    @param plot_path:  A function that can take a local file name and give back the full path to that file.
     @return: None
     """
     #only want to have elapsed time as an index
@@ -83,17 +92,17 @@ def plot_train_size(results, metric, full_plot_path):
         plt.ylim(0.0, 1.0)
     plt.plot(results, marker=".")
     plt.legend(tuple(results.columns.values), loc=2)
-    plt.savefig(full_plot_path(metric))
+    plt.savefig(plot_path(metric))
     plt.close()
 
 
-def conflict_uncertainty_scatter(results, full_plot_path):
+def conflict_uncertainty_scatter(results, plot_path):
     """
     Create scatterplots of conflict vs uncertainty to be able to identify regions where the algorithm is more/less
     successful.
     @param results: A pandas dataframe with one column for each interesting cutoff. Each "1" in a column will be plotted
     as one cross in the scatterplot for this column, "0" values are ignored.
-    @param full_plot_path: A function that can take a local file name and give back the full path to that file
+    @param plot_path: A function that can take a local file name and give back the full path to that file
     @return: None
     """
 
@@ -108,27 +117,21 @@ def conflict_uncertainty_scatter(results, full_plot_path):
         plt.ylabel("uncertainty", fontsize=18)
         plt.xlim(0, 1.0)
         plt.ylim(0, 1.0)
-        f = full_plot_path(cutoff)
-        plt.savefig(full_plot_path(cutoff))
+        f = plot_path(cutoff)
+        plt.savefig(plot_path(cutoff))
         plt.close()
 
 
-def histogram(to_compare,data,filename):
-    bar_width = 0.75       
-    colors=["lightblue","lightgreen","lightcoral","orange","pink"]
-    services=[service for (service,executed,correct) in data[to_compare[0]]]
+def comparison_histogram(results, plot_path):
+    """
+    Compare results (typically true positives) using a bar plot with one set of bars for every possible user action.
+    The resulting plot allows to easier see for which actions an algorithm/algorithm setting is more successful.
+    @param results: A pandas dataframe with one row for every user action and one column for every algorithm/setting to
+    be compared.
+    @param plot_path:
+    @return:
+    """
 
-    for (c_index,c) in enumerate(to_compare):
-        x=range(c_index,len(services)*(len(to_compare)+1),len(to_compare)+1)  
-        y=[executed for (service,executed,correct) in data[c]]       
-        plt.bar(x,y,bar_width,color='grey',alpha=0.3)
-        y=[correct for (service,executed,correct) in data[c]]       
-        plt.bar(x,y,bar_width,color=colors[c_index])
-    
-    x=range(int(len(to_compare)/2),len(services)*(len(to_compare)+1),len(to_compare)+1)
-    plt.xticks(x,services,rotation=90,size=9)
-    plt.xlim(0,x[-1]+1) 
+    results.plot(kind="bar", colormap="Greens")
     plt.subplots_adjust(bottom=0.4)
-    #plt.legend(tuple(to_compare),loc=0) 
-    plt.savefig(filename)
-    plt.close()   
+    plt.savefig(plot_path("hist"))
