@@ -25,6 +25,13 @@ def plot_observations(data):
     Show which actions typically follow a given user action.
     @param data: The dataset for which to plot the observations.
     """
+    """
+    Note: the figure for "Frontdoor=Closed" slightly deviates from Figure 1 in the paper and Figure 5.1 in the
+    dissertation (see paper_experiments.py for bibliographical information). The number of observed actions was reported
+    correctly in the paper/dissertation, however there was an issue with ordering which actions occur most commonly,
+    which resulted in "Open cups cupboard" being erroneously included in the figure. Despite this issue, the main point
+    of the figure still stands: the user has some observable habits after closing the frontdoor.
+    """
     def observations_as_dataframe(counts, bins):
         obs = pandas.DataFrame(counts)
         obs.columns = data.target_names
@@ -32,16 +39,12 @@ def plot_observations(data):
         return obs
 
     cls = TemporalEvidencesClassifier(data.features, data.target_names,
-                                      binning_method=StaticBinning(bins=list(range(0, 600, 10))))
+                                      binning_method=StaticBinning(bins=list(range(0, 300, 10))))
     cls = cls.fit(data.data, data.target)
 
     conf = plot.plot_config(plot_directory, sub_dirs=[data.name, "observations"], img_type=img_type)
     for source in cls.sources.values():
-        if not source.source_name() == "Frontdoor=Closed":
-           continue
         observations = observations_as_dataframe(source.temporal_counts, cls.binning_method.bins)
-
-        #print pandas.Series([count for count in source.total_counts], index=data.target_names)
         plot.plot_observations(source.source_name(), observations, conf)
 
 def confusion_matrix(data):

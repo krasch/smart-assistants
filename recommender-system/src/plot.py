@@ -27,31 +27,6 @@ def plot_config(base_dir, sub_dirs=[], prefix="", img_type="pdf"):
     return full_plot_path
 
 
-def plot_observations(source, observations, plot_path, plot_best=10):
-    """
-    Show which actions typically follow a given user action.
-    @param source: The name of the last user action.
-    @param observations: A pandas dataframe with one column for each following user action and one row for each bin
-    used by the classifier. Each item in the matrix describes how often a user action has been observed in each bin.
-    @param plot_path: function that can take a local file name and give back the full path to that file,
-    @param plot_best: Only the plot-best number of actions with the most total number of observations in these bins will
-    be shown in the resulting plot.
-    @return:
-    """
-    #keep only actions with highest numbers of observations
-    observations_per_action = observations.sum()
-    observations_per_action.sort(ascending=False)
-    most_observations = observations_per_action.index[0:plot_best]
-    observations = observations[most_observations]
-
-    #perform the plotting
-    plt.figure()
-    observations.plot()
-    plt.xlabel("Time since setting changed [seconds]")
-    plt.ylabel("Observed actions (smoothed)")
-    plt.savefig(plot_path(source))
-
-
 def plot_quality_comparison(results, metric, plot_path):
     """
     Create a lineplot, with one line for every evaluated classifier, showing the measured metric for this classifier.
@@ -135,3 +110,28 @@ def comparison_histogram(results, plot_path):
     results.plot(kind="bar", colormap="Greens")
     plt.subplots_adjust(bottom=0.4)
     plt.savefig(plot_path("hist"))
+
+
+def plot_observations(source, observations, plot_path, plot_best=5):
+    """
+    Show which actions typically follow a given user action.
+    @param source: The name of the last user action.
+    @param observations: A pandas dataframe with one column for each following user action and one row for each bin
+    used by the classifier. Each item in the matrix describes how often a user action has been observed in each bin.
+    @param plot_path: function that can take a local file name and give back the full path to that file,
+    @param plot_best: Only the plot-best number of actions with the most total number of observations in these bins will
+    be shown in the resulting plot.
+    @return:
+    """
+    #keep only actions with highest numbers of observations
+    observations_per_action = observations.sum()
+    observations_per_action.sort(ascending=False)
+    most_observations = observations_per_action.index[0:plot_best]
+    observations = observations[most_observations]
+
+    #perform the plotting
+    plt.figure()
+    observations.plot()
+    plt.xlabel("Time since setting changed [seconds]")
+    plt.ylabel("Observed actions (smoothed)")
+    plt.savefig(plot_path(source))
