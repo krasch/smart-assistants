@@ -1,10 +1,11 @@
-from collections import defaultdict
+import  os
 
 import numpy
 import pandas
 
 from data.kasteren import load_scikit as load_kasteren
 from experiment import Experiment
+from classifiers.metrics import quality_metrics, results_as_dataframe
 from classifiers.randomc import RandomClassifier
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
@@ -18,12 +19,18 @@ This file contains experiments for evaluating the proposed recommender system. T
 in more detail in:
 - the accompanying paper (todo link)
 - my dissertation (http://www.diva-portal.org/smash/record.jsf?pid=diva2:650328)
+Each method also contains references to the relevant sections in paper/dissertation.
 """
+
+
+#store plots in ../plots/
+plot_directory = os.path.join(os.pardir, "plots")
+img_type = "pdf"
 
 
 def compare_classifiers(data):
     """
-    Compare accuracy and runtimes of several classifiers for one dataset. Performs 10-fold cross-validation. Details
+    Compare quality and runtimes of several classifiers for one dataset. Performs 10-fold cross-validation. Details
     for this experiment can be found in the paper in Section 6.4 and in the dissertation in Section 5.5.4,
     @param data: The dataset on which to run the comparison.
     """
@@ -32,10 +39,13 @@ def compare_classifiers(data):
     experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names), name="Our method")
     experiment.add_classifier(NaiveBayesClassifier(data.features, data.target_names), name="Naive Bayes")
     experiment.add_classifier(RandomClassifier(data.features, data.target_names), name="Random")
-    experiment.run(folds=10)
-    experiment.print_runtime_comparison()
-    experiment.print_accuracy_comparison()
-    experiment.plot_accuracy_comparison()
+    results = experiment.run(folds=10)
+
+    results.print_runtime_comparison()
+    results.print_quality_comparison()
+
+    plot_conf = plot.plot_config(plot_directory, sub_dirs=[data.name], img_type=img_type)
+    results.plot_quality_comparison(plot_conf)
 
 
 def evaluate_interval_settings(data):
@@ -65,9 +75,54 @@ def evaluate_interval_settings(data):
     for (name, bins) in intervals_to_test:
         experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names,
                                   binning_method=StaticBinning(bins=bins)), name=name)
-    experiment.run(folds=10)
-    experiment.print_runtime_comparison()
-    experiment.print_accuracy_comparison_at_cutoff(cutoff=1)
+
+    results = experiment.run(folds=10)
+    results.print_runtime_comparison()
+    results.print_quality_comparison_at_cutoff(cutoff=1)
+
+
+def scatter_conflict_uncertainty(data):
+    """
+    Scatter conflict versus uncertainty at different cutoffs to find regions of uncertainty/conflict where the algorithm
+    is more/less successful. Further details for this experiment can be found in the paper in Section 6.6 and the
+    dissertation in Section 5.5.7.
+    @param data: The dataset used for the evaluation
+    @return:
+    """
+
+    #run the classifier on the whole dataset
+    cls = TemporalEvidencesClassifier(dataset.features,dataset.target_names)
+    cls = cls.fit(dataset.data, dataset.target)
+    results = cls.predict(dataset.data, include_conflict_theta=True)
+
+    #extract conflict and uncertainty and convert recommendations to pandas representation
+    recommendations, conflict, uncertainty = zip(*results)
+    results = results_as_dataframe(dataset.target, list(recommendations))
+
+    #for each row, mark correct recommendations with "1", false recommendations with "0"
+    find_matches_in_row = lambda row: [1 if col == row.name else 0 for col in row]
+    results = results.apply(find_matches_in_row, axis=1)
+
+    #set uncertainty and conflict as multi-index
+    results.index = pandas.MultiIndex.from_tuples(zip(conflict, uncertainty),
+                                                  names=["Conflict", "Uncertainty"])
+
+
+    #found_within: the correct service was found within X recommendations
+    #-> apply cumulative sum on each row so that the "1" marker is set for all columns after it first appears
+    found_within = results.cumsum(axis=1)
+    #create one plot for each cutoff
+    conf = plot.plot_config(plot_directory, sub_dirs=[data.name, "scatter"],
+                            prefix="found_within_", img_type=img_type)
+    plot.conflict_uncertainty_scatter(found_within, conf)
+
+
+    #not found withing: the correct service was not found within X recommendations, is the reverse of found_within
+    not_found_within = found_within.apply(lambda col: 1-col)
+    #create one plot for each cutoff
+    conf = plot.plot_config(plot_directory, sub_dirs=[data.name, "scatter"],
+                            prefix="not_found_within_", img_type=img_type)
+    plot.conflict_uncertainty_scatter(not_found_within, conf)
 
 
 def evaluate_dynamic_cutoff(data):
@@ -77,16 +132,16 @@ def evaluate_dynamic_cutoff(data):
     @param data: The dataset used for evaluation.
     """
     print "Evaluating use of dynamic cutoff methods"
-    experiment=Experiment(data)
+    experiment = Experiment(data)
     methods_to_test = [("Fixed cutoff", None),
                        ("dynamic cutoff=4", dynamic_cutoff(1.0, 0.4, 4)),
                        ("dynamic cutoff=2", dynamic_cutoff(1.0, 0.4, 2))]
-    for (name, method) in methods_to_test:
+
+    for name, method in methods_to_test:
         experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names,
                                   postprocess=method), name=name)
-    experiment.run(folds=10)
-    experiment.print_accuracy_comparison()
-
+    results = experiment.run(folds=10)
+    results.print_quality_comparison()
 
 
 def evaluate_training_size(data):
@@ -114,7 +169,7 @@ def evaluate_training_size(data):
 
     def initialize_experiment():
         experiment = Experiment(data)
-        experiment.add_classifier(TemporalEvidencesClassifier(dataset.features, dataset.target_names), name="Our method")
+        #experiment.add_classifier(TemporalEvidencesClassifier(dataset.features, dataset.target_names), name="Our method")
         experiment.add_classifier(NaiveBayesClassifier(data.features, data.target_names), name="Naive Bayes")
         experiment.add_classifier(RandomClassifier(data.features, data.target_names), name="Random")
         return experiment
@@ -125,31 +180,48 @@ def evaluate_training_size(data):
                                                  names=["Size of dataset", "Elapsed time (days)"])
         return df
 
+
+
     #the classifiers will be trained with increasingly larger training datasets, create those here
     train_sizes, train_times, train_datasets, test_datasets = divide_dataset()
 
-    #run the experiment
-    results = defaultdict(list)
+    #run the experiment for each of the created datasets
+    results = []
     for train_data, test_data in zip(train_datasets, test_datasets):
         experiment = initialize_experiment()
-        #run only one fold for this data for each of the classifiers
-        for cls in experiment.classifiers:
-            experiment.run_with_classifier(cls, [(train_data, test_data)])
-        #store results for cutoff=1
-        for metric in experiment.accuracy_stats:
-            results[metric].append(experiment.compare_classifiers_at_cutoff(metric, "Mean", cutoff=1).transpose())
+        #run with all defined classifiers
+        stats = [experiment.run_with_classifier(cls, [(train_data, test_data)])
+                 for cls in experiment.classifiers]
+        #combine results of all classifiers for this training dataset, keep only results for cutoff=1
+        quality_stats = pandas.concat([quality for quality, runtime in stats], axis=1).loc[1]
+        results.append(quality_stats)
 
-    #add multi-index of training sizes and training times to the results
-    results = {metric: add_index_to_results(result, train_sizes, train_times) for metric, result in results.items()}
 
-    #print out results
-    for metric in experiment.accuracy_stats:
+    #make one big matrix with all results and add multi-index of training sizes and training times
+    results = pandas.concat(results, axis=1).transpose()
+    results.index = pandas.MultiIndex.from_tuples(zip(train_sizes, train_times),
+                                                 names=["Size of dataset", "Elapsed time (days)"])
+
+    #print confidence intervals for interesting metrics
+    interesting_columns = lambda metric: [(cls.name,metric, "Confidence interval") for cls in experiment.classifiers]
+    for metric in ["Precision", "Recall", "F1"]:
+        r = results[interesting_columns(metric)]
+        r.columns = [cls.name for cls in experiment.classifiers]
         print metric
-        print results[metric]
+        print r
+
+    #plot means for interesting metrics
+    plot_conf = plot.plot_config(plot_directory, sub_dirs=[data.name], prefix="trainsize_", img_type=img_type)
+    interesting_columns = lambda metric: [(cls.name, metric, "Mean") for cls in experiment.classifiers]
+    for metric in ["Precision", "Recall", "F1"]:
+        r = results[interesting_columns(metric)]
+        r.columns = [cls.name for cls in experiment.classifiers]
+        plot.plot_train_size(r, metric, plot_conf)
 
 
 dataset = load_kasteren("houseA")
 #compare_classifiers(dataset)
 #evaluate_interval_settings(dataset)
+#scatter_conflict_uncertainty(dataset)
 #evaluate_dynamic_cutoff(dataset)
 evaluate_training_size(dataset)

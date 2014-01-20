@@ -1,164 +1,126 @@
-from collections import defaultdict
-from datetime import timedelta,datetime
-import json
+import os
 
-import numpy
+import pandas
 
 from data.kasteren import load_scikit as load_kasteren
-from data.mavlab import load_scikit as load_mavlab
-from classifiers.randomc import RandomClassifier
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
-from classifiers.metrics import multiple_predictions_scores,num_predictions
+from classifiers.metrics import QualityMetricsCalculator
 from classifiers.binners import StaticBinning
-from classifiers.metrics import confusion_matrix as calculate_confusion_matrix
-from classifiers.postprocess import dynamic_cutoff
-from classifiers.caching import PreviousItemCache
 import plot
 
-def plot_evidences(dataset):
-   cls = TemporalEvidencesClassifier(dataset.features,dataset.target_names,binning_method=StaticBinning(bins=list(range(0,300,10))))
-   #cls=NaiveBayesClassifier(dataset.features,dataset.target_names)
-   cls = cls.fit(dataset.data, dataset.target)
-   plot.plot_evidences(cls)
-   #results=cls.predict(dataset.data)
+"""
+This module contains some additional functions for exploring the data and the recommendation results produced
+by the different classifiers.
+"""
 
-def write_evidences(dataset):
-   if not dataset.name=="houseA":
-      raise Exception("Wrong dataset")
-   cls = TemporalEvidencesClassifier(dataset.features,dataset.target_names,binning_method=StaticBinning(bins=list(range(0,310,10))))
-   cls = cls.fit(dataset.data, dataset.target)
-   bins=cls.binning_method.bins
-   source = cls.sources[("Frontdoor","Closed")]
-   interesting_actions={"Frontdoor=Open":"Open front door","Fridge=Open":"Open fridge",
-                        "Hall-Bathroom_door=Open":"Open bathroom door","Cups_cupboard=Closed":"Open cups cabinet"}
-   observations=dict()
-   for a,action in enumerate(cls.target_names):
-       if action in interesting_actions:
-          observations[interesting_actions[action]]=[source.temporal_counts[b][a] for b in range(len(bins))]
-   print json.dumps({"bins":bins,"observations":observations},sort_keys=True,indent=4, separators=(',', ': '))
 
-def timeline(dataset):
+#store plots in ../plots/
+plot_directory = os.path.join(os.pardir, "plots")
+img_type = "pdf"
 
-    cache=PreviousItemCache()
-    cls = TemporalEvidencesClassifier(dataset.features,dataset.target_names,cache=cache)
+
+def plot_observations(data):
+    """
+    Show which actions typically follow a given user action.
+    @param data: The dataset for which to plot the observations.
+    """
+    """
+    Note: the figure for "Frontdoor=Closed" slightly deviates from Figure 1 in the paper and Figure 5.1 in the
+    dissertation (see paper_experiments.py for bibliographical information). The number of observed actions was reported
+    correctly in the paper/dissertation, however there was an issue with ordering which actions occur most commonly,
+    which resulted in "Open cups cupboard" being erroneously included in the figure. Despite this issue, the main point
+    of the figure still stands: the user has some observable habits after closing the frontdoor.
+    """
+    def observations_as_dataframe(counts, bins):
+        obs = pandas.DataFrame(counts)
+        obs.columns = data.target_names
+        obs.index = bins
+        return obs
+
+    cls = TemporalEvidencesClassifier(data.features, data.target_names,
+                                      binning_method=StaticBinning(bins=list(range(0, 300, 10))))
+    cls = cls.fit(data.data, data.target)
+
+    conf = plot.plot_config(plot_directory, sub_dirs=[data.name, "observations"], img_type=img_type)
+    for source in cls.sources.values():
+        observations = observations_as_dataframe(source.temporal_counts, cls.binning_method.bins)
+        plot.plot_observations(source.source_name(), observations, conf)
+
+def confusion_matrix(data):
+    """
+    Print a confusion matrix: for each action contains information on how often each service was recommended
+    @param data: The dataset for which to print the matrix,
+    @return:
+    """
+    cls = TemporalEvidencesClassifier(data.features, data.target_names)
     cls = cls.fit(dataset.data, dataset.target)
+    results = cls.predict(dataset.data)
 
-    cache_hit_runtimes=[]
-    cache_miss_runtimes=[]
-    
-    for i,data in enumerate(dataset.timeline(timedelta(seconds=1))):
-          runtime=datetime.now()
-          cls.predict([data],include_conflict_theta=True)
-          runtime=(datetime.now()-runtime).microseconds
-          
-          if cache.get_statistics()[0]>len(cache_hit_runtimes):
-             cache_hit_runtimes.append(runtime)
-          else:
-             cache_miss_runtimes.append(runtime)  
+    matrix = QualityMetricsCalculator(data.target, results).confusion_matrix()
 
-          #if i>35000: 
-          #   break 
-          
-    print "hits %d, misses %d"%cache.get_statistics()
-    print "hit runtime %.4f"%numpy.mean(numpy.array(cache_hit_runtimes))
-    print "miss runtime %.4f"%numpy.mean(numpy.array(cache_miss_runtimes))
-    
+    #for pretty printing purposes, replace name of recommendation in columns with single letter,
+    #and have row index "(letter) action"
+    letters = list(map(chr, list(range(97, 123))))+list(map(chr, list(range(65, 91))))
+    action_to_letter = {action: letter for action, letter in zip(matrix.index, letters)}
+    matrix.columns = [action_to_letter[action] for action in matrix.columns]
+    matrix.index = ["(%s) %s" % (action_to_letter[action], action) for action in matrix.index]
+    matrix.index.name = "Actual action"
+
+    pandas.set_printoptions(max_rows=40, max_columns=40)
+    print matrix
 
 
-def confusion_matrix(dataset):
-    cls = NaiveBayesClassifier(dataset.features,dataset.target_names)
-    cls = cls.fit(dataset.data, dataset.target)
-    results=cls.predict(dataset.data)
-    (labels,matrix)=calculate_confusion_matrix(dataset.target,results)
+def histogram_compare_methods(data):
+    """
+    Create a histogram that compares true positives for different classifiers/classifier settings
+    @param data: The dataset for which to create the plot.
+    """
 
-    letters=list(map(chr, list(range(97, 123))))+list(map(chr, list(range(65, 91))))
-    column_width=len(str(matrix.max()))+2
-    print "".join([letter.rjust(column_width) for letter in letters[0:len(labels)]])+"     predicted/actual"
-    for row,label,letter in zip(matrix,labels,letters):
-        print "".join([str(c).rjust(column_width) for c in row])+"   "+letter+" "+label
+    classifiers = [NaiveBayesClassifier(dataset.features, dataset.target_names),
+                   TemporalEvidencesClassifier(dataset.features, dataset.target_names)]
 
-    labels,tps,fps,fns,weights=count_tpfpfn(dataset.target,results,1)
-    for l,tp,fp,fn in zip(labels,tps,fps,fns):
-        print l,"tp:",tp,"fp:",fp,"fn:",fn
-    
+    #run the experiment using full dataset as training and as test data
+    results = []
+    for cls in classifiers:
+        cls = cls.fit(data.data, data.target)
+        r = cls.predict(data.data)
+        r = QualityMetricsCalculator(data.target, r)
+        results.append(r.true_positives_for_all())
 
-def histogram_compare_methods(dataset):
-    #clss = [("NaiveBayes",NaiveBayesClassifier(dataset.features,dataset.target_names)),
-    #        ("Temporal Evidences",TemporalEvidencesClassifier(dataset.features,dataset.target_names))]
+    #want for each classifier result only the measurements for cutoff=1
+    results = [r.loc[1] for r in results]
+    results = pandas.concat(results, axis=1)
+    results.columns = [cls.name for cls in classifiers]
 
-    intervals_to_test=[("up to 60",list(range(0,60,10))), 
-                       ("up to 300",list(range(0,60,10))+list(range(60,300,30))),
-                       ("up to 600",list(range(0,60,10))+list(range(60,600,30))),
-                       ("up to 600, all short",list(range(0,600,10)))]
-    clss = [(name,TemporalEvidencesClassifier(dataset.features,dataset.target_names,binning_method=StaticBinning(bins=bins))) for (name,bins) in intervals_to_test]
-    cutoff=1
-  
-    histogram_data=defaultdict(list)
-    for (cls_name,cls) in clss:
-        cls = cls.fit(dataset.data, dataset.target) 
-        results=cls.predict(dataset.data)
-        executed_by_service=defaultdict(int)
-        correct_by_service=defaultdict(int)
-        for (actual,predictions) in zip(dataset.target,results):
-            executed_by_service[actual]+=1
-            if actual in predictions[0:cutoff]:
-               correct_by_service[actual]+=1
-        histogram_data[cls_name]=[(service,executed_by_service[service],correct_by_service[service]) for service in sorted(executed_by_service)]
- 
-    plot.histogram([cls_name for (cls_name,cls) in clss],histogram_data,"../plots/"+dataset.name+"/histogram_compare_methods.pdf")
+    conf = plot.plot_config(plot_directory, sub_dirs=[data.name], prefix="compare_methods_", img_type=img_type)
+    plot.comparison_histogram(results, conf)
 
-def histogram_compare_cutoffs(dataset):
-    to_compare=[1,2,3,4]
-    cls = TemporalEvidencesClassifier(dataset.features,dataset.target_names)
-    cls = NaiveBayesClassifier(dataset.features,dataset.target_names)
-    cls = cls.fit(dataset.data, dataset.target)
-    results=cls.predict(dataset.data)
 
-    results_by_service=defaultdict(list)
-    position = lambda predictions,actual : predictions.index(actual)+1 if actual in predictions else None
-    for (actual,predictions) in zip(dataset.target,results):
-        results_by_service[actual].append(position(predictions,actual))
-    
-    count_correct = lambda positions,cutoff : len([p for p in positions if p<=cutoff])
-    histogram_data=dict()
-    for c in to_compare:
-        histogram_data[c]=[(service,len(service_results),count_correct(service_results,c)) for (service,service_results) in sorted(results_by_service.items())]
-    plot.histogram(to_compare,histogram_data,"../plots/"+dataset.name+"/histogram_compare_cutoffs.pdf")
-    
+def histogram_compare_cutoffs(data):
+    """
+    Create a histogram that compares true positives for different cutoffs using one classifier.
+    @param data: The dataset for which to create the plot.
+    """
 
-def scatter_conflict_theta(dataset):
+    to_compare = [1, 2, 3, 4]
 
-    #aggregate scatterdata such that each scatterplot shows the services correctly found at that cutoff
-    #e.g. scatterplot 1 shows all services correctly found at cutoff 1, etc
-    found_at_filter=("found_at",lambda actual,predictions,cutoff: actual==predictions[cutoff])
-    #aggregate scatterdata such that each scatterplot shows the services found within the first cutoff positions of the predictions
-    #e.g. scatterplot 5 shows all services correctly found at cutoff 1+2+3+4+5, etc
-    found_within_filter=("found_within",lambda actual,predictions,cutoff: actual in predictions[0:cutoff+1])
-    #aggregate scatterdata such that each scatterplot shows the services not yet found within the first cutoff positions of the predictions
-    #e.g. scatterplot 5 shows all services not found at cutoff 1+2+3+4+5, etc
-    not_found_within_filter=("not_found_within",lambda actual,predictions,cutoff: not actual in predictions[0:cutoff+1])
+    #run classifier and count true positives
+    cls = TemporalEvidencesClassifier(data.features, data.target_names)
+    cls = cls.fit(data.data, data.target)
+    results = cls.predict(data.data)
+    results = QualityMetricsCalculator(data.target, results).true_positives_for_all()
 
-    (filter_name,filter_func)=not_found_within_filter
-    max_cutoff=11
+    #only use the interesting cutoffs
+    results = results.transpose()[to_compare]
+    results.columns = ["cutoff=%s" % c for c in results.columns]
 
-    cls = TemporalEvidencesClassifier(dataset.features,dataset.target_names)
-    cls = cls.fit(dataset.data, dataset.target)
-    results=cls.predict(dataset.data,include_conflict_theta=True)
-    scatter_data=[]
-    for cutoff in range(1,max_cutoff):
-        scatter_data.append([(conflict,theta) for (actual,(predictions,conflict,theta)) in zip(dataset.target,results) 
-                                              if cutoff-1<len(predictions) and filter_func(actual,predictions,cutoff-1)])
-        
-    plot.conflict_theta_scatter(scatter_data,base_filename="../plots/"+dataset.name+"/scatter/"+filter_name+"_")    
-    #print json.dumps({"not_found_within_2":scatter_data[1],"not_found_within_4":scatter_data[3]})
-    print json.dumps({"found_within_1":scatter_data[0]})
+    conf = plot.plot_config(plot_directory, sub_dirs=[data.name], prefix="compare_cutoffs_", img_type=img_type)
+    plot.comparison_histogram(results, conf)
 
-#dataset=load_mavlab()
 
-dataset=load_kasteren("houseA")   
-#write_evidences(dataset)
-scatter_conflict_theta(dataset)
-#histogram_compare_methods(dataset)
+dataset = load_kasteren("houseA")
+plot_observations(dataset)
 #confusion_matrix(dataset)
-#timeline(dataset)
+#histogram_compare_methods(dataset)
+#histogram_compare_cutoffs(dataset)
