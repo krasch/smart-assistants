@@ -1,12 +1,16 @@
 from collections import defaultdict
 from datetime import datetime,timedelta
 import re
+from ConfigParser import SafeConfigParser
+import os.path
+from ConfigParser import SafeConfigParser
 
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.datasets.base import Bunch
 import numpy
 import pandas
 
+"""
 class UnknownDataset(Exception):
       def __init__(self,dataset):
           self.dataset=dataset
@@ -14,157 +18,6 @@ class UnknownDataset(Exception):
       def __str__(self):
           return "Unknown dataset: %s"%self.dataset
 
-def action(sensor,value):
-    return "%s=%s"%(sensor,value)
-
-class Setting:
-
-    def __init__(self,time,sensor,value):
-        self.sensor=sensor
-        self.value=value
-        self.time=time
-
-    def copy(self):
-        return Setting(self.time,self.sensor,self.value)
-
-
-    def __str__(self):
-        if self.time is None: 
-           return "%s=%s"%(self.sensor,self.value)
-        else:
-           return "%s=%s (%s)"%(self.sensor,self.value,self.time)
-
-
-class Instance:
-
-    def __init__(self,time):
-        self.settings=dict()
-        self.action=None
-        self.time=time
-
-    def copy(self,time):
-        new=Instance(time)    
-        for setting in self.settings.values():
-            new.settings[setting.sensor]=setting.copy()
-        return new
-
-    def update_setting(self,time,sensor,value):
-        self.settings[sensor]=Setting(time,sensor,value)
-
-    def set_action(self,time,sensor,value):
-        self.action=Setting(time,sensor,value)
-
-    def setting_changed(self,sensor,value):
-        if not sensor in self.settings:
-           return True
-        if self.settings[sensor].value==value:
-           return False
-        return True
-
-    def value(self,sensor):
-        if not sensor in self.settings:
-           return None
-        return self.settings[sensor].value
-
-    def timedelta(self,sensor):
-        if not sensor in self.settings:
-           return None
-        return self.action.time-self.settings[sensor].time
-
-    def __str__(self):
-        ordered = [str(self.settings[setting]) for setting in sorted(self.settings)]
-        return ", ".join(ordered) +"->"+str(self.action)
-
-
-class Dataset:
-    
-    def __init__(self,name):
-        self.name=name
-        self.sensors=defaultdict(list)
-        self.actions=[]
-        self.data=[]
-
-    def _excluded(self,name,excluded):
-        for ex in excluded:
-            if re.match(ex,name):
-               return True
-        return False
-
-    def read(self,datafile,exclude_sensors=[],exclude_actions=[]):
-        events=pandas.read_csv(datafile,index_col=0,parse_dates=[0])
-
-        instance=None
-        for (time,sensor,value) in events.itertuples(index=True):
-            if self._excluded(sensor,exclude_sensors): #or (not instance is None and not instance.setting_changed(sensor,value)):
-               continue
-            if not value in self.sensors[sensor]:
-               self.sensors[sensor].append(value)
-            
-            if instance is None:
-               instance=Instance(time)                    #this is the first event, there is no service
-               instance.update_setting(time,sensor,value)  
-               continue
-
-            if not self._excluded(action(sensor,value),exclude_actions):
-               instance.set_action(time,sensor,value)
-               self.data.append(instance)
-               instance=instance.copy(time)
-               if not (sensor,value) in self.actions:
-                  self.actions.append((sensor,value))
-
-            instance.update_setting(time,sensor,value)
-
-    def __str__(self):
-         return "\n".join([str(d) for d in self.data])
- 
-def timedelta_seconds(timedelta):
-    return timedelta.days*24*60*60+timedelta.seconds     
-
-def dataset_to_arff(dataset,exclude_timedeltas=False,filename=None):
-
-
-    def escape(string):
-        return "%s"%string
-
-    #arff header
-    arff=["@relation "+dataset.name]
-    for sensor in sorted(dataset.sensors):
-        arff.append("@attribute %s {%s}"%(sensor,",".join(escape(value) for value in dataset.sensors[sensor])))
-        if not exclude_timedeltas:
-           arff.append("@attribute %s_timedelta real"%sensor)
-    arff.append("@attribute action {%s}"%(",".join([escape(action(sensor,value)) for (sensor,value) in dataset.actions])))
-
-
-    #arff data body
-    arff.append("@data")
-    for d in dataset.data:
-        values=[]
-        for sensor in sorted(dataset.sensors):
-            #value attribute 
-            value=d.value(sensor)
-            if value is None:
-               values.append("?")
-            else:
-               values.append(escape(value))
-            #timedelta attribute
-            if not exclude_timedeltas:
-               timedelta=d.timedelta(sensor)
-               if timedelta is None:
-                  values.append("?")
-               else:
-                  values.append(str(timedelta_seconds(timedelta)))
-        values.append(escape(action(d.action.sensor,d.action.value)))
-        arff.append(",".join(values))
-
-    arff="\n".join(arff)
-    if not filename is None:
-       f = open(filename,"w")
-       f.write(arff)
-       f.flush()
-       f.close()
-    return arff
-
-     
 def scikit_timeline_generator(features,times,data,targets):
     timedelta_indexes=list(set([timedelta_index for _,_,_,timedelta_index in features]))
     
@@ -262,5 +115,175 @@ def dataset_to_scikit(dataset):
                  times=times,
                  timeline=scikit_timeline_generator(features,times,data,targets),
                  target_names=sorted(target_names))
+
+"""
+
+def load_dataset(path_to_csv, path_to_config=None):
+
+    def default_config():
+        #default name is the name of the csv file without extension, e.g. "houseA.csv" -> "houseA"
+        default_name = os.path.splitext(os.path.basename(path_to_config))[0]
+        #per default do not exclude any sensors or services
+        default_excluded_sensors = ""
+        default_excluded_services = ""
+
+        default_conf = SafeConfigParser()
+        default_conf.add_section("basic")
+        default_conf.set("basic", "name", default_name)
+        default_conf.add_section("excludes")
+        default_conf.set("excludes", "excluded_sensors", default_excluded_sensors)
+        default_conf.set("excludes", "excluded_services", default_excluded_services)
+
+        return  default_conf
+
+    def read_config():
+
+        #read config if exists or use defaults
+        config = default_config()
+        if not path_to_config is None:
+            if not os.path.exists(path_to_config):
+                raise ValueError("Could not find config file at %s " % os.path.abspath(path_to_config))
+            config.read(path_to_config)
+
+        #excluded sensors and services are given as a comma-separated string, convert to python list
+        excluded_list = lambda exclude: [e.strip().replace("\"", "") for e in exclude.split(",") if len(e.strip()) > 0]
+
+        return config.get("basic", "name"), \
+               excluded_list(config.get("excludes", "excluded_sensors")), \
+               excluded_list(config.get("excludes", "excluded_services"))
+
+    name, excluded_sensors, excluded_services = read_config()
+    events = pandas.read_csv(path_to_csv, parse_dates=["timestamp"])
+    data = events_to_dataset(events, name, excluded_sensors, excluded_services)
+    return data
+
+def events_to_dataset(events, name, excluded_sensors, excluded_services):
+
+
+    def extract_actions():
+
+        #create dataframe with two columns, one for the actions and one for the timestamp of the actions occurrence
+        action_name = lambda row: "%s=%s" % (row["sensor"], row["value"])
+        actions_name_column = events.apply(action_name, axis=1)
+        actions_with_timestamps = pandas.concat([actions_name_column, events["timestamp"]], axis=1)
+        actions_with_timestamps.columns = ["action", "timestamp"]
+
+        #todo explain the shift
+        actions_with_timestamps = actions_with_timestamps.shift(-1)
+
+        return actions_with_timestamps
+
+    def data_for_sensor(sensor, actions):
+        #get all the events for this sensor
+        relevant_events = events[events["sensor"] == sensor]
+
+        #forward fill the sensor data
+        #e.g. if at T=0 sensor=value 1 and at T=10 sensor=value2, then fill all in-between T=(1-9) with value1
+        relevant_events = relevant_events.reindex(events.index)
+        relevant_events.fillna(method="pad", inplace=True)
+
+        #calculate for each user action, how much time has passed since the sensor value changed
+        time_passed = actions["timestamp"] - relevant_events["timestamp"]
+
+        #create a dataframe that contains one row for every user action, one column with the current sensor value at the
+        #the time of the action, one column with the time passed since the sensor value changed
+        sensor_data = pandas.DataFrame({sensor: relevant_events["value"],
+                                        "%s_timedelta" % sensor: time_passed})
+        return sensor_data
+
+
+    #remove events coming from any of the excluded sensors
+    events_for_excluded = events["sensor"].isin(excluded_sensors)
+    events = events[numpy.invert(events_for_excluded)]
+
+    #get a dataframe with the user actions
+    actions = extract_actions()
+
+    #create dataset with one row per use action and two columns for each sensor:
+    #column $sensor contains sensor values, column $sensor (timedelta) contains time passed since the sensor value
+    #changed at the time of the action corresponding to the current row
+    sensors = events["sensor"].unique()
+    data = pandas.concat([data_for_sensor(sensor, actions) for sensor in sorted(sensors)], axis=1)
+
+    #add action as a final column and set action timestamp as index
+    data["action"] = actions["action"]
+    data.index = actions["timestamp"]
+
+    #drop data for actions that correspond to excluded services
+    data_for_excluded = data["action"].isin(excluded_services)
+    data = data[numpy.invert(data_for_excluded)]
+
+    #for the last row, there is no next user actions -> remove that row
+    data = data[0:-1]
+
+    data.name = name
+    return data
+
+
+def dataset_to_scipy(data):
+    pass
+
+
+def write_dataset_as_arff(data, path_to_arff):
+
+    def columns_as_arff_attributes():
+        """
+        The arff header contains information about all attributes (=columns) in the dataset. This method converts column
+        metadata into the correct arff format.
+        @return: A list of strings with the arff descriptions for all columns in the dataset.
+        """
+        value_column_to_attribute = lambda col: "@attribute %s {%s}" % (col, ",".join(data[col].dropna().unique()))
+        timestamp_column_to_attribute = lambda col: "@attribute %s real" % col
+        column_to_attribute = lambda col: timestamp_column_to_attribute(col) if "timedelta" in col \
+                                          else value_column_to_attribute(col)
+
+        return [column_to_attribute(column) for column in data.columns]
+
+    def convert_timestamps(original):
+        """
+        Convert the numpy timedeltas (which are in nanoseconds) to seconds
+        @param original: The original dataset with numpy timedeltas.
+        @return: The dataset with timedeltas replaced
+        """
+        nanoseconds_to_seconds = lambda ts: str(int(ts.item()/(1000.0*1000.0*1000.0)))
+        is_missing = lambda ts: str(ts) == "NaT"
+        convert_timedelta = lambda ts: numpy.nan if is_missing(ts) else nanoseconds_to_seconds(ts)
+
+        #perform the conversion
+        converted = original
+        timedelta_columns = filter(lambda col: isinstance(original[col][0], numpy.timedelta64), original.columns)
+        converted[timedelta_columns] = converted[timedelta_columns].applymap(convert_timedelta)
+
+        return converted
+
+    def data_as_arff_strings():
+        """
+        Map each row in the dataset to a string in arff format.
+        @return: A list of strings, one for each row in the dataset
+        """
+
+        #convert timestamps to format that arff can understand
+        converted_data = convert_timestamps(data)
+
+        #replace any N/A values with the arff symbol "?" for missing data
+        converted_data = converted_data.fillna("?")
+
+        #convert each row to one string, column values are separated by ","
+        row_to_string = lambda row: ",".join(row.values)
+        converted_data = converted_data.apply(row_to_string, axis=1)
+
+        return converted_data.values
+
+    f = open(path_to_arff, "w")
+
+    #arff header contains the name of the dataset and one line for each attribute describing the attribute's type
+    f.write("@relation %s\n" % data.name)
+    f.write("\n".join(columns_as_arff_attributes()))
+
+    #arff body has one line for each row in the dataset with the values of this row
+    f.write("\n\n@data\n")
+    f.write("\n".join(data_as_arff_strings()))
+    f.close()
+
 
 

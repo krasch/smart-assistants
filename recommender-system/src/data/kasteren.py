@@ -1,4 +1,4 @@
-from dataset import Dataset,dataset_to_scikit,dataset_to_arff,UnknownDataset
+from dataset import Dataset,dataset_to_scikit,write_dataset_as_arff,UnknownDataset
 
 base_path="../datasets/"
 
@@ -26,5 +26,3 @@ def load_scikit(house):
     dataset=load(house)
     scikit=dataset_to_scikit(dataset)
     return scikit
-
-load("houseA")

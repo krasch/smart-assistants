@@ -1,4 +1,4 @@
-from dataset import Dataset,dataset_to_scikit,dataset_to_arff,UnknownDataset
+from dataset import Dataset,dataset_to_scikit,write_dataset_as_arff,UnknownDataset
 
 database="../datasets/mavlab_april.db"
 
