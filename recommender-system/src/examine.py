@@ -6,7 +6,7 @@ from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
 from classifiers.metrics import QualityMetricsCalculator
 from classifiers.binners import StaticBinning
-from data.dataset import write_dataset_as_arff, events_to_dataset, load_dataset
+from data.dataset import write_dataset_as_arff, events_to_dataset, load_dataset, dataset_to_scikit
 import plot
 
 """
@@ -54,6 +54,7 @@ def confusion_matrix(data):
     @param data: The dataset for which to print the matrix,
     @return:
     """
+
     cls = TemporalEvidencesClassifier(data.features, data.target_names)
     cls = cls.fit(data.data, data.target)
     results = cls.predict(data.data)
@@ -120,12 +121,10 @@ def histogram_compare_cutoffs(data):
     plot.comparison_histogram(results, conf)
 
 
-#dataset = load_kasteren("houseA")
+dataset = load_dataset("../datasets/houseA.csv", "../datasets/houseA.config")
+dataset = dataset_to_scikit(dataset)
+
 #plot_observations(dataset)
-#confusion_matrix(dataset)
+confusion_matrix(dataset)
 #histogram_compare_methods(dataset)
 #histogram_compare_cutoffs(dataset)
-
-
-data = load_dataset("../datasets/houseA.csv", "../datasets/houseA.config")
-write_dataset_as_arff(data, "test.arff")

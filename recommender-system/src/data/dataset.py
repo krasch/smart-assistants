@@ -220,8 +220,62 @@ def events_to_dataset(events, name, excluded_sensors, excluded_services):
     return data
 
 
-def dataset_to_scipy(data):
-    pass
+def dataset_to_scikit(data):
+
+    #convert a nominal attribute to several binary features, one for each attribute value
+    #e.g."door" [open/close] converts to "door=open" (can be 1 or 0) and "door=closed)" (can be 1 or 0)
+    def attribute_to_binary(attribute_data):
+        attribute_data = attribute_data.dropna()
+
+        def binary_column_for_value(val):
+            return attribute_data.apply(lambda v: 1 if v == val else 0)
+
+        attribute_values = attribute_data.unique()
+        binary_columns = [binary_column_for_value(value) for value in attribute_values]
+        binary_columns = pandas.concat(binary_columns, axis=1)
+        binary_columns.columns = ["%s=%s" % (attribute_data.name, value) for value in attribute_values]
+
+        return binary_columns
+
+    dataset_name = data.name
+
+    #todo explain targets
+    targets = data["action"]
+    data = data.drop("action", axis=1)
+
+    #todo why are integer indexes better?
+    times = data.index
+    data.reset_index(inplace=True)
+    data = data.drop("timestamp", axis=1)
+
+    #seperate columns that contain current sensor values from columns that contain timedelta information
+    timedelta_columns = [col for col in data.columns if col.endswith("_timedelta")]
+    value_columns = [col for col in data.columns if not col in timedelta_columns]
+
+    #scikit does not support nominal attributes -> convert each attribute to several binary columns, one for each value
+    binarized_data = pandas.concat([attribute_to_binary(data[attribute]) for attribute in value_columns], axis=1)
+
+    #attach timedelta columns after binary columns
+    binarized_data = pandas.concat([binarized_data, data[timedelta_columns]], axis=1)
+
+    #scikit will give the classifiers only the data itself, without the column headers to make sense of the data
+    #-> create an index of the columns that the classifier will be initalized with
+    #todo improve when improving base classifier
+    columns = {value: index for index, value in enumerate(binarized_data.columns)}
+    index = []
+    for attribute in value_columns:
+        binary_column_names = [col for col in binarized_data.columns if col.startswith(attribute+"=")]
+        timedelta_column_name = attribute+"_timedelta"
+        for bin in binary_column_names:
+            index.append((attribute, bin.replace(attribute+"="," "), columns[bin], columns[timedelta_column_name]))
+
+
+    return Bunch(name=dataset_name,
+                 data=binarized_data.values,
+                 target=targets.values,
+                 features=index,
+                 times=times.values,
+                 target_names=sorted(targets.unique()))
 
 
 def write_dataset_as_arff(data, path_to_arff):
