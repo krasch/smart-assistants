@@ -2,11 +2,11 @@ import os
 
 import pandas
 
-from data.kasteren import load_scikit as load_kasteren
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
 from classifiers.metrics import QualityMetricsCalculator
 from classifiers.binners import StaticBinning
+from dataset import load_dataset_as_sklearn
 import plot
 
 """
@@ -47,15 +47,17 @@ def plot_observations(data):
         observations = observations_as_dataframe(source.temporal_counts, cls.binning_method.bins)
         plot.plot_observations(source.source_name(), observations, conf)
 
+
 def confusion_matrix(data):
     """
     Print a confusion matrix: for each action contains information on how often each service was recommended
     @param data: The dataset for which to print the matrix,
     @return:
     """
+
     cls = TemporalEvidencesClassifier(data.features, data.target_names)
-    cls = cls.fit(dataset.data, dataset.target)
-    results = cls.predict(dataset.data)
+    cls = cls.fit(data.data, data.target)
+    results = cls.predict(data.data)
 
     matrix = QualityMetricsCalculator(data.target, results).confusion_matrix()
 
@@ -77,8 +79,8 @@ def histogram_compare_methods(data):
     @param data: The dataset for which to create the plot.
     """
 
-    classifiers = [NaiveBayesClassifier(dataset.features, dataset.target_names),
-                   TemporalEvidencesClassifier(dataset.features, dataset.target_names)]
+    classifiers = [NaiveBayesClassifier(data.features, data.target_names),
+                   TemporalEvidencesClassifier(data.features, data.target_names)]
 
     #run the experiment using full dataset as training and as test data
     results = []
@@ -119,8 +121,9 @@ def histogram_compare_cutoffs(data):
     plot.comparison_histogram(results, conf)
 
 
-dataset = load_kasteren("houseA")
-plot_observations(dataset)
+dataset = load_dataset_as_sklearn("../datasets/houseA.csv", "../datasets/houseA.config")
+
+#plot_observations(dataset)
 #confusion_matrix(dataset)
 #histogram_compare_methods(dataset)
 #histogram_compare_cutoffs(dataset)

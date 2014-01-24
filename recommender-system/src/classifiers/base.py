@@ -36,7 +36,7 @@ class BaseClassifier(BaseEstimator):
       def features_currently_set(self,instance):
           result=[]
           for (attribute,value,index,timedelta_index) in self.features:
-              if int(instance[index])==1:
+              if not numpy.isnan(instance[index]) and int(instance[index])==1:
                  result.append((attribute,value,instance[timedelta_index]))    
           return result
 

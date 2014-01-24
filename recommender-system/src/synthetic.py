@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 import numpy
 
-from data.dataset import Dataset,Instance,dataset_to_scikit
+from src.dataset import Dataset,Instance,dataset_to_scikit
 from classifiers.temporal import TemporalEvidencesClassifier,Source
 from experiment import avg_std_CI
 
