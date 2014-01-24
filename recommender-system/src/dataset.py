@@ -25,14 +25,14 @@ def load_dataset(path_to_csv, path_to_config=None):
         default_name = os.path.splitext(os.path.basename(path_to_config))[0]
         #per default do not exclude any sensors or services
         default_excluded_sensors = ""
-        default_excluded_services = ""
+        default_excluded_actions = ""
 
         default_conf = SafeConfigParser()
         default_conf.add_section("basic")
         default_conf.set("basic", "name", default_name)
         default_conf.add_section("excludes")
         default_conf.set("excludes", "excluded_sensors", default_excluded_sensors)
-        default_conf.set("excludes", "excluded_services", default_excluded_services)
+        default_conf.set("excludes", "excluded_actions", default_excluded_actions)
 
         return default_conf
 
@@ -49,7 +49,7 @@ def load_dataset(path_to_csv, path_to_config=None):
 
         return config.get("basic", "name"), \
                excluded_list(config.get("excludes", "excluded_sensors")), \
-               excluded_list(config.get("excludes", "excluded_services"))
+               excluded_list(config.get("excludes", "excluded_actions"))
 
     name, excluded_sensors, excluded_services = read_config()
     events = pandas.read_csv(path_to_csv, parse_dates=["timestamp"])
