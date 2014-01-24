@@ -1,124 +1,24 @@
-from collections import defaultdict
-from datetime import datetime,timedelta
-import re
-from ConfigParser import SafeConfigParser
 import os.path
 from ConfigParser import SafeConfigParser
 
-from sklearn.feature_extraction import DictVectorizer
 from sklearn.datasets.base import Bunch
 import numpy
 import pandas
 
 """
-class UnknownDataset(Exception):
-      def __init__(self,dataset):
-          self.dataset=dataset
-
-      def __str__(self):
-          return "Unknown dataset: %s"%self.dataset
-
-def scikit_timeline_generator(features,times,data,targets):
-    timedelta_indexes=list(set([timedelta_index for _,_,_,timedelta_index in features]))
-    
-    #get an instance array such that it has all values set as the current instance in the dataset, 
-    #but timedeltas reset to match time of next instance
-    def initialize_instance(current_instance,current_time,next_time):
-        delta_in_seconds=(next_time-current_time).seconds+(next_time-current_time).days*24*60*60
-        instance=numpy.array(current_instance, copy=True)
-        for index in timedelta_indexes:
-            if instance[index]>=0:
-               instance[index]-=delta_in_seconds
-        return instance
-
-    #increment all timedeltas with given number of seconds
-    def increment_instance(instance,increment_seconds):
-       instance=numpy.array(instance, copy=True)
-       for index in timedelta_indexes:
-           if instance[index]>=0:
-              instance[index]+=increment_seconds
-       return instance
- 
-    #the actual generator  
-    def generate(timedelta):
-        time=times[0]
-        i=0
-        while i<len(times)-1:
-            if times[i]<=time:
-               instance=initialize_instance(data[i],times[i],times[i+1])
-               i+=1
-            time+=timedelta  
-            instance=increment_instance(instance,timedelta.seconds)
-            yield instance
-            #if times[i]<=time:
-            #   yield instance,targets[i+1]
-            #else:
-            #   yield instance,None
-    
-    return generate
-
-def dataset_to_scikit(dataset):
-
-    times=[]
-    data_values=[]
-    data_timedeltas=[]
-    targets=[]
-    target_names=[]
-    for d in dataset.data:
-        values=dict()
-        timedeltas=[]
-        for sensor in sorted(dataset.sensors):
-            #value attributes
-            value=d.value(sensor)
-            if value is None:
-               values[sensor]="?"
-            else:
-               values[sensor]=value
-            #timedelta attribute
-            timedelta=d.timedelta(sensor)
-            if timedelta is None:
-               timedeltas.append(-1)
-            else:
-               timedeltas.append(timedelta_seconds(timedelta))   
-        times.append(d.time)    
-        data_values.append(values)
-        data_timedeltas.append(timedeltas)
-        target=action(d.action.sensor,d.action.value)
-        targets.append(target)
-        if not target in target_names:
-           target_names.append(target)
- 
-
-    #convert nominal attributes to numeric, using several binary features per attribue
-    vec = DictVectorizer()
-    data=vec.fit_transform(data_values).toarray()
-    feature_names=vec.get_feature_names()
- 
-    #add timedelta attributes
-    data=numpy.concatenate((data,numpy.array(data_timedeltas)),axis=1)
-    for sensor in sorted(dataset.sensors):
-        feature_names.append(sensor+"_timedelta")
-
-    #create feature index
-    features=[]
-    for sensor in sorted(dataset.sensors):
-        timedelta_index=feature_names.index(sensor+"_timedelta")
-        for value in sorted(dataset.sensors[sensor]):
-            feature_index=feature_names.index(sensor+"="+value)
-            features.append((sensor,value,feature_index,timedelta_index))
-
-              
-    return Bunch(name=dataset.name,
-                 data=data,
-                 target=numpy.array(targets),
-                 features=features,
-                 times=times,
-                 timeline=scikit_timeline_generator(features,times,data,targets),
-                 target_names=sorted(target_names))
-
+This module contains methods for reading datasets and converting them to scikit-learn and arff (weka) formats.
 """
 
 def load_dataset(path_to_csv, path_to_config=None):
+    """
+    This function reads an event-list dataset and returns a dataset that lists for all event timestamps the current
+    settings of all available sensors. Please see `events_to_dataset` for more information on the resulting dataset.
+    @param path_to_csv: The csv file that contains the dataset. The data must be formatted in three columns:
+    "timestamp", "sensor", "value". The timestamp must be in a format that is readable by pandas.
+    @param path_to_config: Path where an optional config file can be found. Please look at the file "houseA.config" for
+    how to structure this file.
+    @return: The resulting dataset.
+    """
 
     def default_config():
         #default name is the name of the csv file without extension, e.g. "houseA.csv" -> "houseA"
@@ -134,10 +34,9 @@ def load_dataset(path_to_csv, path_to_config=None):
         default_conf.set("excludes", "excluded_sensors", default_excluded_sensors)
         default_conf.set("excludes", "excluded_services", default_excluded_services)
 
-        return  default_conf
+        return default_conf
 
     def read_config():
-
         #read config if exists or use defaults
         config = default_config()
         if not path_to_config is None:
@@ -157,18 +56,76 @@ def load_dataset(path_to_csv, path_to_config=None):
     data = events_to_dataset(events, name, excluded_sensors, excluded_services)
     return data
 
-def events_to_dataset(events, name, excluded_sensors, excluded_services):
 
+def load_dataset_as_sklearn(path_to_csv, path_to_config=None):
+    """
+    This function reads an event-list dataset and returns a dataset according to the scikit-learn dataset format. This
+    dataset be used to train and test the recommendation classifiers.
+    @param path_to_csv: The csv file that contains the dataset. The data must be formatted in three columns:
+    "timestamp", "sensor", "value". The timestamp must be in a format that is readable by pandas.
+    @param path_to_config: Path where an optional config file can be found. Please look at the file "houseA.config" for
+    how to structure this file.
+    @return: The resulting dataset.
+    """
+    data = load_dataset(path_to_csv, path_to_config)
+    return dataset_to_sklearn(data)
+
+
+def events_to_dataset(events, name, excluded_sensors, excluded_actions):
+    """
+    Convert an event-list dataset and return a dataset that lists for all event timestamps the next user action, the
+    current settings of all available sensors at the time of this next user action and for how long the sensors had their
+    settings at the time of the user action.
+
+    Example input event-list dataset:
+                   timestamp   sensor  value
+    ----------------------------------------
+     0   2012-05-01 00:00:00  sensor1     on
+     1   2012-05-02 00:00:04  sensor3    off
+     2   2012-05-03 00:00:07  sensor1    off
+     3   2012-05-01 00:00:09  sensor2     on
+     4   2012-05-01 00:00:12  sensor3     on
+
+    Resulting dataset for this event-list:
+       sensor1  sensor1_timedelta sensor2  sensor2_timedelta sensor3  sensor3_timedelta       action    action_timestamp
+    --------------------------------------------------------------------------------------------------------------------
+     0      on           00:00:04       -                  -       -                 -  sensor3=off  2012-05-01 00:00:04
+     1      on           00:00:07       -                  -     off          00:00:03  sensor1=off  2012-05-01 00:00:07
+     2     off           00:00:02       -                  -     off          00:00:05   sensor2=on  2012-05-01 00:00:09
+     3     off           00:00:05      on           00:00:03     off          00:00:08   sensor3=on  2012-05-01 00:00:12
+
+
+    Each sensor column contains the current value of the sensor at the time of the action. The initial value of the
+    sensor is not known, therefore the sensor value is set to missing until the first event for this sensor.
+
+    Each sensor_timedelta columns lists how long the corresponding sensor value has not changed at the time of the
+    user actions.
+
+    The action column contains the user actions, the action_timestamp column contains the time where the action occurred.
+    For simplicity, actions are named as "sensor=value". For example if the user turns off the TV, the internal status
+    sensor of the TV will read "off" and this action is called "TV=off". Some sensor settings can not be mapped to
+    actions, e.g. "ToiletFlush=Off" happens automatically without any user action. The excluded_actions parameter is the
+    list of all such non-valid actions, all rows that contain these "actions" are removed from the resulting dataset.
+
+    For the first user action (in this example "sensor1=on"), we do not yet have any sensor settings. For this reason
+    this action is omitted from the dataset.
+
+    @param events: The event-list dataset.
+    @param name: The name of the dataset.
+    @param excluded_sensors: A list of sensors that should not be included in the resulting dataset
+    @param excluded_actions: A list of non-valid actions that should not be included in the resulting dataset.
+    @return: The resulting dataset.
+    """
 
     def extract_actions():
-
         #create dataframe with two columns, one for the actions and one for the timestamp of the actions occurrence
         action_name = lambda row: "%s=%s" % (row["sensor"], row["value"])
         actions_name_column = events.apply(action_name, axis=1)
         actions_with_timestamps = pandas.concat([actions_name_column, events["timestamp"]], axis=1)
         actions_with_timestamps.columns = ["action", "timestamp"]
 
-        #todo explain the shift
+        #the action column is a preview of the one next action given the current sensor values -> shift the
+        #action columns upp one row
         actions_with_timestamps = actions_with_timestamps.shift(-1)
 
         return actions_with_timestamps
@@ -205,12 +162,12 @@ def events_to_dataset(events, name, excluded_sensors, excluded_services):
     sensors = events["sensor"].unique()
     data = pandas.concat([data_for_sensor(sensor, actions) for sensor in sorted(sensors)], axis=1)
 
-    #add action as a final column and set action timestamp as index
+    #add action and action timestamp as final columns
     data["action"] = actions["action"]
-    data.index = actions["timestamp"]
+    data["action_timestamp"] = actions["timestamp"]
 
-    #drop data for actions that correspond to excluded services
-    data_for_excluded = data["action"].isin(excluded_services)
+    #drop data for actions that correspond to excluded actions
+    data_for_excluded = data["action"].isin(excluded_actions)
     data = data[numpy.invert(data_for_excluded)]
 
     #for the last row, there is no next user actions -> remove that row
@@ -220,7 +177,12 @@ def events_to_dataset(events, name, excluded_sensors, excluded_services):
     return data
 
 
-def dataset_to_scikit(data):
+def dataset_to_sklearn(data):
+    """
+    Convert the dataset into one that can be used by the scikit-learn library [http://scikit-learn.org]
+    @param data: The dataset as produced by `load_dataset`.
+    @return: The dataset in scikit-learn format.
+    """
 
     #convert a nominal attribute to several binary features, one for each attribute value
     #e.g."door" [open/close] converts to "door=open" (can be 1 or 0) and "door=closed)" (can be 1 or 0)
@@ -239,20 +201,16 @@ def dataset_to_scikit(data):
 
     dataset_name = data.name
 
-    #todo explain targets
+    #save actions and action timestamps in seperate variables, then drop these columnds from the dataset
     targets = data["action"]
-    data = data.drop("action", axis=1)
-
-    #todo why are integer indexes better?
-    times = data.index
-    data.reset_index(inplace=True)
-    data = data.drop("timestamp", axis=1)
+    times = data["action_timestamp"]
+    data = data.drop(["action", "action_timestamp"], axis=1)
 
     #seperate columns that contain current sensor values from columns that contain timedelta information
     timedelta_columns = [col for col in data.columns if col.endswith("_timedelta")]
     value_columns = [col for col in data.columns if not col in timedelta_columns]
 
-    #scikit does not support nominal attributes -> convert each attribute to several binary columns, one for each value
+    #scikit does not support nominal attributes -> convert each attribute to several binary features, one for each value
     binarized_data = pandas.concat([attribute_to_binary(data[attribute]) for attribute in value_columns], axis=1)
 
     #attach timedelta columns after binary columns
@@ -279,6 +237,13 @@ def dataset_to_scikit(data):
 
 
 def write_dataset_as_arff(data, path_to_arff):
+    """
+    Convert the dataset into the arff format that is used by the weka machine learning framework. The resulting file
+    can be loaded into dataset and different machine learning algorithms can be tested.
+    @param data: The dataset as produced by `load_dataset`.
+    @param path_to_arff: The file to which the resulting arff should be written.
+    @return: None
+    """
 
     def columns_as_arff_attributes():
         """

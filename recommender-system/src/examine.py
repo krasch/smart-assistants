@@ -6,7 +6,7 @@ from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
 from classifiers.metrics import QualityMetricsCalculator
 from classifiers.binners import StaticBinning
-from data.dataset import write_dataset_as_arff, events_to_dataset, load_dataset, dataset_to_scikit
+from dataset import load_dataset_as_sklearn
 import plot
 
 """
@@ -121,10 +121,9 @@ def histogram_compare_cutoffs(data):
     plot.comparison_histogram(results, conf)
 
 
-dataset = load_dataset("../datasets/houseA.csv", "../datasets/houseA.config")
-dataset = dataset_to_scikit(dataset)
+dataset = load_dataset_as_sklearn("../datasets/houseA.csv", "../datasets/houseA.config")
 
 #plot_observations(dataset)
-confusion_matrix(dataset)
+#confusion_matrix(dataset)
 #histogram_compare_methods(dataset)
 #histogram_compare_cutoffs(dataset)

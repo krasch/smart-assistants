@@ -1,11 +1,11 @@
-import  os
+import os
 
 import numpy
 import pandas
 
-from data.kasteren import load_scikit as load_kasteren
+from dataset import load_dataset_as_sklearn
 from experiment import Experiment
-from classifiers.metrics import quality_metrics, results_as_dataframe
+from classifiers.metrics import results_as_dataframe
 from classifiers.randomc import RandomClassifier
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
@@ -91,7 +91,7 @@ def scatter_conflict_uncertainty(data):
     """
 
     #run the classifier on the whole dataset
-    cls = TemporalEvidencesClassifier(dataset.features,dataset.target_names)
+    cls = TemporalEvidencesClassifier(dataset.features, dataset.target_names)
     cls = cls.fit(dataset.data, dataset.target)
     results = cls.predict(dataset.data, include_conflict_theta=True)
 
@@ -107,7 +107,6 @@ def scatter_conflict_uncertainty(data):
     results.index = pandas.MultiIndex.from_tuples(zip(conflict, uncertainty),
                                                   names=["Conflict", "Uncertainty"])
 
-
     #found_within: the correct service was found within X recommendations
     #-> apply cumulative sum on each row so that the "1" marker is set for all columns after it first appears
     found_within = results.cumsum(axis=1)
@@ -115,7 +114,6 @@ def scatter_conflict_uncertainty(data):
     conf = plot.plot_config(plot_directory, sub_dirs=[data.name, "scatter"],
                             prefix="found_within_", img_type=img_type)
     plot.conflict_uncertainty_scatter(found_within, conf)
-
 
     #not found withing: the correct service was not found within X recommendations, is the reverse of found_within
     not_found_within = found_within.apply(lambda col: 1-col)
@@ -219,7 +217,7 @@ def evaluate_training_size(data):
         plot.plot_train_size(r, metric, plot_conf)
 
 
-dataset = load_kasteren("houseA")
+dataset = load_dataset_as_sklearn("../datasets/houseA.csv", "../datasets/houseA.config")
 #compare_classifiers(dataset)
 #evaluate_interval_settings(dataset)
 #scatter_conflict_uncertainty(dataset)
