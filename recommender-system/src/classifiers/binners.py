@@ -22,45 +22,13 @@ def smooth(x,window_len=10,window='hanning'):
     return y[window_len:-window_len+1]
 
 
-"""
-#bins the timedeltas according to a fixed list of bins
-standard_bins=list(range(0,60,10))+list(range(60,300,30))
-def fixed_bins_binning(bins=standard_bins):
-
-    #returns a function that can look up the correct key for this specific binning
-    def lookup_function(bins):
-        def lookup(timedelta):
-            if timedelta is None:
-               raise LookupFailed(timedelta)
-            for b in range(len(bins)):
-               if timedelta<bins[b]:  
-                   return b-1
-            raise LookupFailed(timedelta)     
-        return lookup        
-
-    #perform the binning
-    def perform(timedeltas,smoothing):
-        lookup=lookup_function(bins)
-        binned=[0]*len(bins)
-        for t in timedeltas:
-           try:
-              key=lookup(t) 
-              binned[key]+=1
-           except LookupFailed:
-              pass
-        binned=list(smooth(numpy.array(binned[target])))
-        return binned,lookup
-
-    return perform
-"""
-
-
 class StaticBinning:
 
-   standard_bins=list(range(0,60,10))+list(range(60,300,30))
+   standard_bins=list(range(10, 70, 10))+list(range(90, 330, 30))
     
    def __init__(self,bins=standard_bins):
        self.bins=bins
+       #self.bins = [bin for bin in self.bins]
 
    def perform_binning(self,timedeltas):
        binned=[0]*len(self.bins)

@@ -38,7 +38,7 @@ def compare_classifiers(data):
     experiment = Experiment(data)
     experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names), name="Our method")
     experiment.add_classifier(NaiveBayesClassifier(data.features, data.target_names), name="Naive Bayes")
-    experiment.add_classifier(RandomClassifier(data.features, data.target_names), name="Random")
+    #experiment.add_classifier(RandomClassifier(data.features, data.target_names), name="Random")
     results = experiment.run(folds=10)
 
     results.print_runtime_comparison()
@@ -218,8 +218,8 @@ def evaluate_training_size(data):
 
 
 dataset = load_dataset_as_sklearn("../datasets/houseA.csv", "../datasets/houseA.config")
-#compare_classifiers(dataset)
+compare_classifiers(dataset)
 #evaluate_interval_settings(dataset)
 #scatter_conflict_uncertainty(dataset)
 #evaluate_dynamic_cutoff(dataset)
-evaluate_training_size(dataset)
+#evaluate_training_size(dataset)

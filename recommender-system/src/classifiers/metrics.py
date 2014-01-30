@@ -52,6 +52,7 @@ class QualityMetricsCalculator():
         return sorted(occurring_actions | occurring_services)
 
     def true_positives(self, action):
+
         """
         Counts how often the given action was recommended correctly (true positives, TP).
         @param action: The name of the user action for which to count true positives.
@@ -60,15 +61,22 @@ class QualityMetricsCalculator():
         """
         #get all rows where the actual action corresponds to the given action
         r = self.results[self.results.index == action]
-        #if recommendation matches the action, set column to "1" (true positive), else set to "0" (false negative)
-        r = r.applymap(lambda col: 1 if col == action else 0)
-        #count how many true positives there are in each column
-        r = r.sum()
-        #if have a true positive for n-th recommendation, then also have true positive for n+1, n+2 etc
-        #-> calculate cumulative sum
-        r = pandas.DataFrame(r.cumsum(axis=0), columns=["TP"]).applymap(float)
-        r.index.name = "cutoff"
-        return r
+
+        if len(r) == 0:
+            #if there are no such rows, then we have zero true positives, fill result dataframe with zeroes
+           true_positives = pandas.Series(0.0, index=self.results.columns)
+        else:
+            #if recommendation matches the action, set column to "1" (true positive), else set to "0" (false negative)
+            r = r.applymap(lambda col: 1 if col == action else 0).fillna(0)
+            #count how many true positives there are in each column
+            r = r.sum()
+            #if have a true positive for n-th recommendation, then also have true positive for n+1, n+2 etc
+            #-> calculate cumulative sum
+            true_positives = r.cumsum(axis=0).apply(float)
+
+        true_positives = pandas.DataFrame(true_positives, columns=["TP"])
+        true_positives.index.name = "cutoff"
+        return true_positives
 
     def true_positives_for_all(self):
         """
@@ -76,7 +84,7 @@ class QualityMetricsCalculator():
         @return: A pandas with one column for each action, first row lists #TP at cutoff "1", the second row at
         cutoff "2", etc.
         """
-        tp = [self.true_positives(action )for action in self.__unique_actions__()]
+        tp = [self.true_positives(action) for action in self.__unique_actions__()]
         tp = pandas.concat(tp, axis=1)
         tp.columns = self.__unique_actions__()
         return tp
@@ -90,12 +98,14 @@ class QualityMetricsCalculator():
         """
         #the amount of false negatives corresponds to the difference between the total number of occurrences of the
         #action and the number of false positives
+        true_positives = self.true_positives(action)
         total_occurrences = len(self.results[self.results.index == action])
-        r = self.true_positives(action)
-        r = r.apply(lambda tp: total_occurrences - tp)
-        r.columns = ["FN"]
-        r.index.name = "cutoff"
-        return r
+        total_occurrences = pandas.Series(total_occurrences, index = true_positives.index)
+        false_negatives = total_occurrences - true_positives["TP"]
+
+        false_negatives = pandas.DataFrame(false_negatives, columns=["FN"])
+        false_negatives.index.name = "cutoff"
+        return false_negatives
 
     def false_positives(self, action):
         """
@@ -106,15 +116,21 @@ class QualityMetricsCalculator():
         """
         #get all rows where the actual service does NOT correspond to the given action
         r = self.results[self.results.index != action]
-        #if recommendation matches the action, set column to "1" (false positive), else set to "0" (true negative)
-        r = r.applymap(lambda col: 1 if col == action else 0)
-        #count how many false positives there are in each column
-        r = r.sum()
-        #if have a false positive for n-th recommendation, then also have false positive for n+1, n+2 etc
-        #-> calculate cumulative sum
-        r = pandas.DataFrame(r.cumsum(axis=0), columns=["FP"]).applymap(float)
-        r.index.name = "cutoff"
-        return r
+        if len(r) == 0:
+            #if there are no such rows, then we have zero false positives, fill result dataframe with zeroes
+            false_positives = pandas.Series(0.0, index=self.results.columns)
+        else:
+            #if recommendation matches the action, set column to "1" (false positive), else set to "0" (true negative)
+            r = r.applymap(lambda col: 1 if col == action else 0)
+            #count how many false positives there are in each column
+            r = r.sum()
+            #if have a false positive for n-th recommendation, then also have false positive for n+1, n+2 etc
+            #-> calculate cumulative sum
+            false_positives = r.cumsum(axis=0).apply(float)
+
+        false_positives = pandas.DataFrame(false_positives, columns=["FP"])
+        false_positives.index.name = "cutoff"
+        return false_positives
 
     @staticmethod
     def precision(counts):
@@ -186,7 +202,7 @@ class QualityMetricsCalculator():
         metrics["F1"] = self.f1(metrics)["F1"]
 
         #add column that contains name of the action in all rows, to prepare for merging the metrics for all actions
-        metrics["action"] = pandas.Series(action)
+        metrics["action"] = pandas.Series(action, index=metrics.index)
 
         return metrics
 

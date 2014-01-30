@@ -1,9 +1,11 @@
 import os
+import datetime
 
 import pandas
 
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
+from classifiers.randomc import RandomClassifier
 from classifiers.metrics import QualityMetricsCalculator
 from classifiers.binners import StaticBinning
 from dataset import load_dataset_as_sklearn
@@ -56,9 +58,23 @@ def confusion_matrix(data):
     """
 
     cls = TemporalEvidencesClassifier(data.features, data.target_names)
-    cls = cls.fit(data.data, data.target)
-    results = cls.predict(data.data)
+    #cls = RandomClassifier(data.features, data.target_names)
 
+    def delta_in_ms(delta):
+        return delta.seconds*1000.0+delta.microseconds/1000.0
+
+    time = datetime.datetime.now()
+    cls = cls.fit(data.data, data.target)
+    time = datetime.datetime.now() - time
+    print delta_in_ms(time)
+
+    time = datetime.datetime.now()
+    results = cls.predict(data.data)
+    time = datetime.datetime.now() - time
+    print delta_in_ms(time)
+    print delta_in_ms(time)/len(data.data)
+
+    """
     matrix = QualityMetricsCalculator(data.target, results).confusion_matrix()
 
     #for pretty printing purposes, replace name of recommendation in columns with single letter,
@@ -69,8 +85,10 @@ def confusion_matrix(data):
     matrix.index = ["(%s) %s" % (action_to_letter[action], action) for action in matrix.index]
     matrix.index.name = "Actual action"
 
-    pandas.set_printoptions(max_rows=40, max_columns=40)
+    pandas.set_option('expand_frame_repr', False)
+    pandas.set_option('max_columns', 40)
     print matrix
+    """
 
 
 def histogram_compare_methods(data):
@@ -122,8 +140,10 @@ def histogram_compare_cutoffs(data):
 
 
 dataset = load_dataset_as_sklearn("../datasets/houseA.csv", "../datasets/houseA.config")
+#dataset = load_dataset_as_sklearn("../datasets/houseB.csv",)
 
 #plot_observations(dataset)
-#confusion_matrix(dataset)
+confusion_matrix(dataset)
 #histogram_compare_methods(dataset)
 #histogram_compare_cutoffs(dataset)
+

@@ -22,7 +22,7 @@ def load_dataset(path_to_csv, path_to_config=None):
 
     def default_config():
         #default name is the name of the csv file without extension, e.g. "houseA.csv" -> "houseA"
-        default_name = os.path.splitext(os.path.basename(path_to_config))[0]
+        default_name = os.path.splitext(os.path.basename(path_to_csv))[0]
         #per default do not exclude any sensors or services
         default_excluded_sensors = ""
         default_excluded_actions = ""
@@ -177,6 +177,19 @@ def events_to_dataset(events, name, excluded_sensors, excluded_actions):
     return data
 
 
+def convert_timedeltas(timedelta_data):
+    """
+    Convert the numpy timedeltas (which are in nanoseconds) to seconds
+    @param original: The original dataset with numpy timedeltas.
+    @return: The dataset with timedeltas replaced
+    """
+    nanoseconds_to_seconds = lambda ts: int(ts.item()/(1000.0*1000.0*1000.0))
+    is_missing = lambda ts: str(ts) == "NaT"
+    convert_timedelta = lambda ts: numpy.nan if is_missing(ts) else nanoseconds_to_seconds(ts)
+
+    return timedelta_data.applymap(convert_timedelta)
+
+
 def dataset_to_sklearn(data):
     """
     Convert the dataset into one that can be used by the scikit-learn library [http://scikit-learn.org]
@@ -195,13 +208,13 @@ def dataset_to_sklearn(data):
         attribute_values = attribute_data.unique()
         binary_columns = [binary_column_for_value(value) for value in attribute_values]
         binary_columns = pandas.concat(binary_columns, axis=1)
-        binary_columns.columns = ["%s=%s" % (attribute_data.name, value) for value in attribute_values]
+        binary_columns.columns = [(attribute_data.name, value) for value in attribute_values]
 
         return binary_columns
 
     dataset_name = data.name
 
-    #save actions and action timestamps in seperate variables, then drop these columnds from the dataset
+    #save actions and action timestamps in separate variables, then drop these columns from the dataset
     targets = data["action"]
     times = data["action_timestamp"]
     data = data.drop(["action", "action_timestamp"], axis=1)
@@ -213,25 +226,14 @@ def dataset_to_sklearn(data):
     #scikit does not support nominal attributes -> convert each attribute to several binary features, one for each value
     binarized_data = pandas.concat([attribute_to_binary(data[attribute]) for attribute in value_columns], axis=1)
 
-    #attach timedelta columns after binary columns
-    binarized_data = pandas.concat([binarized_data, data[timedelta_columns]], axis=1)
-
-    #scikit will give the classifiers only the data itself, without the column headers to make sense of the data
-    #-> create an index of the columns that the classifier will be initalized with
-    #todo improve when improving base classifier
-    columns = {value: index for index, value in enumerate(binarized_data.columns)}
-    index = []
-    for attribute in value_columns:
-        binary_column_names = [col for col in binarized_data.columns if col.startswith(attribute+"=")]
-        timedelta_column_name = attribute+"_timedelta"
-        for bin in binary_column_names:
-            index.append((attribute, bin.replace(attribute+"="," "), columns[bin], columns[timedelta_column_name]))
-
+    #convert timedelta data from numpy timedeltas to seconds
+    binarized_data[timedelta_columns] = convert_timedeltas(data[timedelta_columns])
 
     return Bunch(name=dataset_name,
                  data=binarized_data.values,
                  target=targets.values,
-                 features=index,
+                 features=binarized_data.columns,
+                 sensors=value_columns,
                  times=times.values,
                  target_names=sorted(targets.unique()))
 
@@ -258,22 +260,6 @@ def write_dataset_as_arff(data, path_to_arff):
 
         return [column_to_attribute(column) for column in data.columns]
 
-    def convert_timestamps(original):
-        """
-        Convert the numpy timedeltas (which are in nanoseconds) to seconds
-        @param original: The original dataset with numpy timedeltas.
-        @return: The dataset with timedeltas replaced
-        """
-        nanoseconds_to_seconds = lambda ts: str(int(ts.item()/(1000.0*1000.0*1000.0)))
-        is_missing = lambda ts: str(ts) == "NaT"
-        convert_timedelta = lambda ts: numpy.nan if is_missing(ts) else nanoseconds_to_seconds(ts)
-
-        #perform the conversion
-        converted = original
-        timedelta_columns = filter(lambda col: isinstance(original[col][0], numpy.timedelta64), original.columns)
-        converted[timedelta_columns] = converted[timedelta_columns].applymap(convert_timedelta)
-
-        return converted
 
     def data_as_arff_strings():
         """
@@ -282,7 +268,8 @@ def write_dataset_as_arff(data, path_to_arff):
         """
 
         #convert timestamps to format that arff can understand
-        converted_data = convert_timestamps(data)
+        timedelta_columns = filter(lambda col: isinstance(data[col][0], numpy.timedelta64), data.columns)
+        converted_data = convert_timedeltas(data)
 
         #replace any N/A values with the arff symbol "?" for missing data
         converted_data = converted_data.fillna("?")
