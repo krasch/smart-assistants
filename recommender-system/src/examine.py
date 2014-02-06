@@ -5,11 +5,11 @@ import pandas
 
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
-from classifiers.randomc import RandomClassifier
-from classifiers.metrics import QualityMetricsCalculator
+from experiment import plot
+from experiment.metrics import QualityMetricsCalculator
+from experiment.experiment import delta_in_ms
 from classifiers.binners import StaticBinning
 from dataset import load_dataset_as_sklearn
-import plot
 
 """
 This module contains some additional functions for exploring the data and the recommendation results produced
@@ -60,16 +60,13 @@ def confusion_matrix(data):
     cls = TemporalEvidencesClassifier(data.features, data.target_names)
     #cls = RandomClassifier(data.features, data.target_names)
 
-    def delta_in_ms(delta):
-        return delta.seconds*1000.0+delta.microseconds/1000.0
-
     time = datetime.datetime.now()
     cls = cls.fit(data.data, data.target)
     time = datetime.datetime.now() - time
     print delta_in_ms(time)
 
     time = datetime.datetime.now()
-    results = cls.predict(data.data)
+    results = cls.predict(data.data[8:])
     time = datetime.datetime.now() - time
     print delta_in_ms(time)
     print delta_in_ms(time)/len(data.data)

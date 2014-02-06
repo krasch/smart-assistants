@@ -12,7 +12,7 @@ def smooth(x,window_len=10,window='hanning'):
     if window_len<3:
        return x
     if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
-       raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
+       raise ValueError("Window is one of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
     s=numpy.r_[2*x[0]-x[window_len-1::-1],x,2*x[-1]-x[-1:-window_len:-1]]
     if window == 'flat': #moving average
        w=numpy.ones(window_len,'d')

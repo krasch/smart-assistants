@@ -201,6 +201,8 @@ def dataset_to_sklearn(data):
     #e.g."door" [open/close] converts to "door=open" (can be 1 or 0) and "door=closed)" (can be 1 or 0)
     def attribute_to_binary(attribute_data):
         attribute_data = attribute_data.dropna()
+        if attribute_data.empty:
+            return None
 
         def binary_column_for_value(val):
             return attribute_data.apply(lambda v: 1 if v == val else 0)

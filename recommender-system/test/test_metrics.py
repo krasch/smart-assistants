@@ -1,6 +1,6 @@
 from numpy.testing import assert_almost_equal
 
-from src.classifiers.metrics import *
+from src.experiment.metrics import *
 from src.classifiers.bayes import NaiveBayesClassifier
 from src.dataset import load_dataset_as_sklearn
 

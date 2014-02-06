@@ -1,17 +1,18 @@
 from datetime import datetime
 from math import sqrt
-import os
 
 from sklearn.cross_validation import KFold
 from scipy import stats as scipy_stats
 import pandas
 import numpy
+from src.experiment import plot
 
-from classifiers.metrics import QualityMetricsCalculator, runtime_metrics, quality_metrics
-import plot
+from src.experiment.metrics import QualityMetricsCalculator, runtime_metrics, quality_metrics
 
 calculated_stats = ["Mean", "Std deviation", "Confidence interval"]
 
+def delta_in_ms(delta):
+    return delta.seconds*1000.0+delta.microseconds/1000.0
 
 def confidence_interval(data, alpha=0.1):
     """
@@ -60,12 +61,12 @@ class Experiment:
             #perform training
             train_time = datetime.now()
             cls = cls.fit(data_train, target_train)
-            train_time = (datetime.now()-train_time).microseconds/1000.0
+            train_time = delta_in_ms(datetime.now()-train_time)
 
             #apply the classifier on the test data
             test_time = datetime.now()
             recommendations = cls.predict(data_test)
-            test_time = (datetime.now()-test_time).microseconds/1000.0
+            test_time = delta_in_ms(datetime.now()-test_time)
 
             #add measurements for this replication to result collection
             runtimes.append({"Training time": train_time,

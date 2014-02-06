@@ -1,14 +1,14 @@
 import pandas
 import numpy
 
-from base import BaseClassifier
+from base import BaseClassifier, apply_mask
 from profilehooks import profile
 
-def print_currently_set(currently_set):
-    out_list=["%s=%s"%(attribute,value) for (attribute,value,timedelta) in sorted(currently_set)]
-    print " ".join(out_list)
 
 class NaiveBayesClassifier(BaseClassifier):
+    """
+    Implements a standard Naive Bayes classifier.
+    """
 
     name = "NaiveBayes"
 
@@ -16,7 +16,16 @@ class NaiveBayesClassifier(BaseClassifier):
         BaseClassifier.__init__(self, features, target_names)
 
     def fit(self, train_data,train_target):
-
+        """
+        Train the classifier.
+        @param train_data: A matrix with len(self.features) columns and one row for each instance in the dataset. Each
+        row describes a user situation with current sensor settings and information on how long these settings have
+        not changed.
+        @param train_target: An array of targets (length of the array corresponds to the number of rows in train_data).
+        Each target represents the action that user performed in the situation described by the corresponding row
+        in train_data.
+        @return: self-reference for this classifier
+        """
         def calculate_priors(data):
             """
             Count how often each target (user action) was seen overall. Performs additive smoothing and normalizes
@@ -31,11 +40,11 @@ class NaiveBayesClassifier(BaseClassifier):
             counts_per_target += 1
             #normalize
             normalized_counts = counts_per_target.div(counts_per_target.sum())
-            return normalized_counts
+            return normalized_counts.values
 
         def calculate_counts_per_setting(data):
             """
-            Count how often each target was seen in each settings.  Performs additive smoothing and normalizes
+            Count how often each target was seen in each setting.  Performs additive smoothing and normalizes
             the counts.
             @param data:
             @return:
@@ -48,6 +57,9 @@ class NaiveBayesClassifier(BaseClassifier):
             #normalize the counts per sensor
             normalize = lambda counts_per_sensor: counts_per_sensor.div(counts_per_sensor.sum(axis=1), axis=0)
             normalized_counts = counts_per_setting.groupby(lambda (sensor, value): sensor, axis=1).transform(normalize)
+
+            #convert to dictionary of numpy arrays for faster calculations later on
+            normalized_counts = {setting: normalized_counts[setting].values for setting in normalized_counts.columns}
             return normalized_counts
 
 
@@ -56,9 +68,8 @@ class NaiveBayesClassifier(BaseClassifier):
         train_data.columns = self.features
         train_data.index = train_target
 
-        #keep only the value columns, since Naive Bayes does not use timedeltas
-        value_columns, timedelta_columns = self.identify_column_types(train_data)
-        train_data = train_data[value_columns]
+        #keep only the columns with current sensor settings, since Naive Bayes does not use timedeltas
+        train_data = train_data[self.settings_columns]
 
         #calculate how often each target was seen and how often it was seen in specific settings
         self.priors = calculate_priors(train_data)
@@ -70,29 +81,49 @@ class NaiveBayesClassifier(BaseClassifier):
 
     #@profile
     def predict(self, test_data):
+        """
+        Calculate recommendations for the test_data
+        @param test_data: A matrix with len(self.features) columns and one row for each instance in the dataset. Each
+        row describes a user situation with current sensor settings and information on how long these settings have
+        not changed.
+        @return: Resulting recommendations for each instance in the dataset (a list of list of strings).
+        """
 
         #load test data into pandas dataframe
         test_data = pandas.DataFrame(test_data)
         test_data.columns = self.features
 
-        #keep only the value columns, since Naive Bayes does not use timedeltas
-        value_columns, timedelta_columns = self.identify_column_types(test_data)
-        test_data = test_data[value_columns]
+        #keep only the columns with current sensor settings, since Naive Bayes does not use timedeltas
+        test_data = test_data[self.settings_columns].values
 
-        #for one instance: calculate posteriors, normalize them and return sorted recommendations
+        #calculate sorted recommendations for one instance
         def predict_for_instance(instance):
-            current_settings = self.current_settings(instance)
-            possible_targets_mask = self.possible_targets_mask(current_settings)
 
-            counts = self.counts[current_settings]
-            posteriors = counts.prod(axis=1) * self.priors
-            posteriors = (posteriors*possible_targets_mask).dropna()
-            normalized_posteriors = posteriors.div(posteriors.sum())
-            normalized_posteriors.sort(ascending=False)
+            #find which sensor values are currently set
+            currently_set = apply_mask(self.settings_columns, instance)
 
-            return normalized_posteriors.index.values
+            #calculate which targets (user actions) are currently possible (possible targets are represented by 1,
+            #not currently possible targets are represented by 0)
+            possible_targets_mask = self.possible_targets_mask(currently_set)
 
-        results = [predict_for_instance(row) for id, row in test_data.iterrows()]
+            #lookup observations for the current settings
+            counts = [self.counts[setting] for setting in currently_set]
+
+            #calculate posteriors, set posteriors for not currently possible targets to zero and normalize
+            posteriors = reduce(numpy.multiply, counts) * self.priors
+            posteriors = posteriors * possible_targets_mask
+            normalized_posteriors = posteriors / posteriors.sum()
+
+            #map resulting posteriors to the possible targets and sort
+            recommendations = {target: posterior for target, posterior, target_is_possible
+                               in zip(self.target_names, normalized_posteriors, possible_targets_mask)
+                               if target_is_possible}
+            sorted_recommendations = sorted(recommendations, key=recommendations.get, reverse=True)
+
+            return sorted_recommendations
+
+        #calculate recommendations for every instance in the test dataset
+        results = [predict_for_instance(test_data[i]) for i in range(len(test_data))]
 
         return results
 

@@ -1,17 +1,18 @@
 import os
+import timeit
 
 import numpy
 import pandas
 
 from dataset import load_dataset_as_sklearn
-from experiment import Experiment
-from classifiers.metrics import results_as_dataframe
+from experiment.experiment import Experiment
+from experiment.metrics import results_as_dataframe
+from experiment import plot
 from classifiers.randomc import RandomClassifier
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
 from classifiers.binners import StaticBinning
 from classifiers.postprocess import dynamic_cutoff
-import plot
 
 
 """
@@ -38,7 +39,7 @@ def compare_classifiers(data):
     experiment = Experiment(data)
     experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names), name="Our method")
     experiment.add_classifier(NaiveBayesClassifier(data.features, data.target_names), name="Naive Bayes")
-    #experiment.add_classifier(RandomClassifier(data.features, data.target_names), name="Random")
+    experiment.add_classifier(RandomClassifier(data.features, data.target_names), name="Random")
     results = experiment.run(folds=10)
 
     results.print_runtime_comparison()
@@ -91,13 +92,13 @@ def scatter_conflict_uncertainty(data):
     """
 
     #run the classifier on the whole dataset
-    cls = TemporalEvidencesClassifier(dataset.features, dataset.target_names)
-    cls = cls.fit(dataset.data, dataset.target)
-    results = cls.predict(dataset.data, include_conflict_theta=True)
+    cls = TemporalEvidencesClassifier(data.features, data.target_names)
+    cls = cls.fit(data.data, data.target)
+    results = cls.predict(data.data, include_conflict_theta=True)
 
     #extract conflict and uncertainty and convert recommendations to pandas representation
     recommendations, conflict, uncertainty = zip(*results)
-    results = results_as_dataframe(dataset.target, list(recommendations))
+    results = results_as_dataframe(data.target, list(recommendations))
 
     #for each row, mark correct recommendations with "1", false recommendations with "0"
     find_matches_in_row = lambda row: [1 if col == row.name else 0 for col in row]
@@ -217,9 +218,41 @@ def evaluate_training_size(data):
         plot.plot_train_size(r, metric, plot_conf)
 
 
+def scalability_experiment():
+    """
+    Evaluate how the proposed recommendation algorithm scales for larger datasets with many sensors and several nominal
+    values per sensor. The data for this experiment is synthetically generated. Details for the experiment can be found
+    in the paper in Section 6.7 and in the dissertation in Section 5.5.9,
+    @return:
+    """
+
+    #setup necessary to run timeit function
+    setup = '''
+from experiment.synthetic import generate_trained_classifier
+from paper_experiments import num_sensors, nominal_values_per_sensor, num_instances
+cls, test_data = generate_trained_classifier(num_sensors=num_sensors,\
+                                             nominal_values_per_sensor=nominal_values_per_sensor, \
+                                             num_test_instances=num_instances)
+'''
+    #evaluation parameters
+    global num_instances, num_sensors, nominal_values_per_sensor
+    num_instances = 1000
+    num_sensors = 100
+    nominal_values_per_sensor = 5
+    seconds_to_milliseconds = lambda seconds: seconds*1000.0
+
+    #evaluate
+    timer = timeit.Timer('cls.predict(test_data.data)', setup=setup)
+    test_time = seconds_to_milliseconds(min(timer.repeat(repeat=3, number=1)))
+    test_time_per_instance = test_time / num_instances
+    print "Testing time per instance %.4f [ms]" % test_time_per_instance
+
+
+
 dataset = load_dataset_as_sklearn("../datasets/houseA.csv", "../datasets/houseA.config")
 compare_classifiers(dataset)
 #evaluate_interval_settings(dataset)
 #scatter_conflict_uncertainty(dataset)
 #evaluate_dynamic_cutoff(dataset)
 #evaluate_training_size(dataset)
+#scalability_experiment()
