@@ -5,10 +5,10 @@ import pandas
 
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
+from classifiers.binning import initialize_bins
 from experiment import plot
 from experiment.metrics import QualityMetricsCalculator
-from experiment.experiment import delta_in_ms
-from classifiers.binners import StaticBinning
+from experiment.experiment_framework import delta_in_ms
 from dataset import load_dataset_as_sklearn
 
 """
@@ -40,8 +40,7 @@ def plot_observations(data):
         obs.index = bins
         return obs
 
-    cls = TemporalEvidencesClassifier(data.features, data.target_names,
-                                      binning_method=StaticBinning(bins=list(range(0, 300, 10))))
+    cls = TemporalEvidencesClassifier(data.features, data.target_names, bins=initialize_bins(0, 300, 10))
     cls = cls.fit(data.data, data.target)
 
     conf = plot.plot_config(plot_directory, sub_dirs=[data.name, "observations"], img_type=img_type)
@@ -63,13 +62,13 @@ def confusion_matrix(data):
     time = datetime.datetime.now()
     cls = cls.fit(data.data, data.target)
     time = datetime.datetime.now() - time
-    print delta_in_ms(time)
+    #print delta_in_ms(time)
 
     time = datetime.datetime.now()
-    results = cls.predict(data.data[8:])
+    results = cls.predict(data.data)
     time = datetime.datetime.now() - time
-    print delta_in_ms(time)
-    print delta_in_ms(time)/len(data.data)
+    #print delta_in_ms(time)
+    #print delta_in_ms(time)/len(data.data)
 
     """
     matrix = QualityMetricsCalculator(data.target, results).confusion_matrix()

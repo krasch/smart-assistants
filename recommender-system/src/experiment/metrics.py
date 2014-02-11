@@ -44,7 +44,6 @@ class QualityMetricsCalculator():
         """
         It can happen that one potential user action never happened, but that the corresponding service was recommended.
         To be able to count these false positives, we must calculate the list of all potential actions.
-        @return:
         """
         occurring_actions = set(self.results.index.values)
         occurring_services = pandas.melt(self.results).dropna()["value"]

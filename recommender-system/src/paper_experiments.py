@@ -5,13 +5,13 @@ import numpy
 import pandas
 
 from dataset import load_dataset_as_sklearn
-from experiment.experiment import Experiment
+from experiment.experiment_framework import Experiment
 from experiment.metrics import results_as_dataframe
 from experiment import plot
 from classifiers.randomc import RandomClassifier
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
-from classifiers.binners import StaticBinning
+from classifiers.binning import initialize_bins
 from classifiers.postprocess import dynamic_cutoff
 
 
@@ -29,11 +29,12 @@ plot_directory = os.path.join(os.pardir, "plots")
 img_type = "pdf"
 
 
-def compare_classifiers(data):
+def compare_classifiers(data, max_concurrently_available_services=None):
     """
     Compare quality and runtimes of several classifiers for one dataset. Performs 10-fold cross-validation. Details
     for this experiment can be found in the paper in Section 6.4 and in the dissertation in Section 5.5.4,
     @param data: The dataset on which to run the comparison.
+    @param max_concurrently_available_services: todo
     """
     print "Compare classifiers for dataset " + data.name
     experiment = Experiment(data)
@@ -43,10 +44,10 @@ def compare_classifiers(data):
     results = experiment.run(folds=10)
 
     results.print_runtime_comparison()
-    results.print_quality_comparison()
+    results.print_quality_comparison(max_concurrently_available_services)
 
     plot_conf = plot.plot_config(plot_directory, sub_dirs=[data.name], img_type=img_type)
-    results.plot_quality_comparison(plot_conf)
+    results.plot_quality_comparison(plot_conf, max_concurrently_available_services)
 
 
 def evaluate_interval_settings(data):
@@ -56,26 +57,28 @@ def evaluate_interval_settings(data):
     """
     print "Comparing different interval settings"
     experiment = Experiment(data)
-    bins = lambda start, end, width: list(range(start, end, width))
+
     intervals_to_test = [#test various settings for delta t_max
-                         ("Delta t_max=10s",   bins(start=0, end=10, width=10)),
-                         ("Delta t_max=15s",   bins(start=0, end=15, width=10)),
-                         ("Delta t_max=30s",   bins(start=0, end=30, width=10)),
-                         ("Delta t_max=60s",   bins(start=0, end=60, width=10)),
-                         ("Delta t_max=120s",  bins(start=0, end=60, width=10)+bins(start=60, end=120, width=30)),
-                         ("Delta t_max=1200s", bins(start=0, end=60, width=10)+bins(start=60, end=1200, width=30)),
+                         ("Delta t_max=10s",   initialize_bins(start=0, end=10, width=10)),
+                         ("Delta t_max=15s",   initialize_bins(start=0, end=15, width=10)),
+                         ("Delta t_max=30s",   initialize_bins(start=0, end=30, width=10)),
+                         ("Delta t_max=60s",   initialize_bins(start=0, end=60, width=10)),
+                         ("Delta t_max=120s",  initialize_bins(start=0, end=60, width=10) +
+                                               initialize_bins(start=60, end=120, width=30)),
+                         ("Delta t_max=1200s", initialize_bins(start=0, end=60, width=10)+
+                                               initialize_bins(start=60, end=1200, width=30)),
                          #test various interval widths
-                         ("all intervals 2s wide",   bins(start=0, end=300, width=2)),
-                         ("all intervals 4s wide",   bins(start=0, end=300, width=4)),
-                         ("all intervals 6s wide",   bins(start=0, end=300, width=6)),
-                         ("all intervals 8s wide",   bins(start=0, end=300, width=8)),
-                         ("all intervals 30s wide",  bins(start=0, end=300, width=30)),
-                         ("all intervals 50s wide",  bins(start=0, end=300, width=50)),
-                         ("all intervals 100s wide", bins(start=0, end=300, width=100))]
+                         ("all intervals 2s wide",   initialize_bins(start=0, end=300, width=2)),
+                         ("all intervals 4s wide",   initialize_bins(start=0, end=300, width=4)),
+                         ("all intervals 6s wide",   initialize_bins(start=0, end=300, width=6)),
+                         ("all intervals 8s wide",   initialize_bins(start=0, end=300, width=8)),
+                         ("all intervals 30s wide",  initialize_bins(start=0, end=300, width=30)),
+                         ("all intervals 50s wide",  initialize_bins(start=0, end=300, width=50)),
+                         ("all intervals 100s wide", initialize_bins(start=0, end=300, width=100))]
 
     for (name, bins) in intervals_to_test:
         experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names,
-                                  binning_method=StaticBinning(bins=bins)), name=name)
+                                  bins=bins, name=name))
 
     results = experiment.run(folds=10)
     results.print_runtime_comparison()
@@ -250,7 +253,7 @@ cls, test_data = generate_trained_classifier(num_sensors=num_sensors,\
 
 
 dataset = load_dataset_as_sklearn("../datasets/houseA.csv", "../datasets/houseA.config")
-compare_classifiers(dataset)
+compare_classifiers(dataset, max_concurrently_available_services=14)
 #evaluate_interval_settings(dataset)
 #scatter_conflict_uncertainty(dataset)
 #evaluate_dynamic_cutoff(dataset)

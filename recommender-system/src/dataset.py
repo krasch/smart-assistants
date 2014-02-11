@@ -235,7 +235,6 @@ def dataset_to_sklearn(data):
                  data=binarized_data.values,
                  target=targets.values,
                  features=binarized_data.columns,
-                 sensors=value_columns,
                  times=times.values,
                  target_names=sorted(targets.unique()))
 

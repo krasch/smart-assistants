@@ -8,11 +8,13 @@ import numpy
 from profilehooks import profile
 
 from base import BaseClassifier, apply_mask
-from binners import StaticBinning,smooth
+from binning import smooth, initialize_bins
 from DS import combine_dempsters_rule
 from postprocess import dynamic_cutoff
 
 
+
+default_bins = initialize_bins(0, 60, 10) + initialize_bins(60, 300, 30)
 
 def print_combined_masses(masses,conflict,theta):
     out_list = ["%s %.4f" % (m, masses[m]) for m in sorted(masses)]
@@ -25,6 +27,10 @@ class Source():
     A source has information about some setting of sensor = value, e.g. which user actions (=targets) where observed
     in this setting and in temporal
     """
+
+    __no_temporal_knowledge_discount__ = 0.0001
+
+    __has_temporal_knowledge__ = lambda self, bin: bin !=-1
 
     def __init__(self, sensor, value, total_counts, temporal_counts):
         self.sensor = sensor
@@ -44,16 +50,14 @@ class Source():
         """
         return max([temporal.sum() for temporal in self.temporal_counts])
 
-    def has_temporal_knowledge(self, bin):
-        return (bin != 14)
 
     def counts(self, bin):
         """
         """
-        if self.has_temporal_knowledge(bin):
-           return self.temporal_counts[bin]
+        if self.__has_temporal_knowledge__(bin):
+           return numpy.copy(self.temporal_counts[bin])
         else:
-           return self.total_counts
+           return numpy.copy(self.total_counts)
 
 
     #@profile
@@ -67,13 +71,14 @@ class Source():
 
         #calculate the current weight of this source
         counts_sum = counts.sum()
-        if self.has_temporal_knowledge(bin):
+        if self.__has_temporal_knowledge__(bin):
             weight = counts_sum/max_temporal
         else:
-            weight = counts_sum/max_total * 0.0001
+            weight = counts_sum/max_total * self.__no_temporal_knowledge_discount__
 
         #calculate the mass distribution for the possible targets
         masses = counts * (weight/counts_sum)
+        #self.__print_source_info__(counts, weight, masses)
 
         return masses
 
@@ -94,10 +99,10 @@ class Source():
         """
         Utility method for debugging what a source knows about a given situation.
         """
-        print "%s=%s (%.4f)" % (self.sensor, self.value, weight)
+        print "%s=%s (%f)" % (self.sensor, self.value, weight)
         masses_dict = {target: masses[t] for t, target in enumerate(self.targets)}
         counts_dict = {target: counts[t] for t, target in enumerate(self.targets)}
-        out_list = ["%s:(%.4f,%.4f)" % (target, counts_dict[target], masses_dict[target])
+        out_list = ["%s:(%.6f,%.6f)" % (target, counts_dict[target], masses_dict[target])
                     for target in sorted(counts_dict)]
         print textwrap.fill(" ".join(out_list), initial_indent="    ", subsequent_indent="    ", width=200)
 
@@ -110,10 +115,9 @@ class TemporalEvidencesClassifier(BaseClassifier):
 
     name = "TemporalEvidences"
 
-    def __init__(self, features, target_names, binning_method=StaticBinning(), postprocess=None):
-        BaseClassifier.__init__(self, features,target_names)
-        self.binning_method=binning_method
-        self.sources=dict()
+    def __init__(self, features, target_names, bins=default_bins, postprocess=None):
+        BaseClassifier.__init__(self, features, target_names)
+        self.bins = bins
 
         #make an index that allows fast lookup of index of the correct timedelta column for each sensor
         self.timedelta_column_for_sensor = {sensor: self.timedelta_columns.index("%s_timedelta" % sensor)
@@ -126,7 +130,11 @@ class TemporalEvidencesClassifier(BaseClassifier):
         @param values: A numpy array of timedeltas.
         @return: A numpy array of bin indexes.
         """
-        return numpy.digitize(values.values, self.binning_method.bins)
+
+        digitized = numpy.digitize(values.values, self.bins)
+        #the last bin contains all values that can not be placed in a regular bin
+        digitized[digitized == len(self.bins)] = -1
+        return digitized
 
     def fit(self, train_data, train_target):
         """
@@ -148,49 +156,59 @@ class TemporalEvidencesClassifier(BaseClassifier):
         #discretize the timedeltas into the given bins
         train_data[self.timedelta_columns] = train_data[self.timedelta_columns].apply(self.digitize_timedeltas)
 
-        #create a Source that knows how often each target has been observed when sensor=value
-        def create_source_for_setting(sensor, value):
-
-            def smoothed_temporal_counts(bins_for_target):
-                #count how often current target was seen in each bin (bincount is much faster than pandas value_counts)
-                counts = numpy.bincount(bins_for_target.values, minlength=len(self.binning_method.bins)+1)
-                #the last item contains counts of timedeltas for which no bin could be found, remove that item
-                counts = counts[0:-1]
-                #counts[-1] = 0        #todo: bug in original program!
-                #perform smoothing; sometimes smoothed contains negative values near 0, round those up to 0
-                smoothed = smooth(counts).clip(0.0)
-                return pandas.Series(smoothed, name=bins_for_target.name)
-
-
-            #retrieve from train_data exactly those rows where the given sensor is set to the given value and select the
-            #corresponding timedelta column for this sensor
-            observations_for_setting = train_data[[(sensor, value), "%s_timedelta" % sensor]]
-            observations_for_setting.columns = ["is_set", "bins"]
-            observations_for_setting = observations_for_setting[observations_for_setting["is_set"] == 1]["bins"]
-
-            #group the observations by the targets
-            bins_grouped_by_target = observations_for_setting.groupby(observations_for_setting.index, sort=False)
-
-            #count how often each target was seen overall and how often each target was seen in each bin
-            total_counts = bins_grouped_by_target.sum()
-            temporal_counts = bins_grouped_by_target.apply(smoothed_temporal_counts).unstack()
-
-            #some targets may have never been observed in this setting, fill counts for these with 0.0
-            total_counts = total_counts.reindex(self.target_names).fillna(0.0)
-            temporal_counts = temporal_counts.reindex(self.target_names).fillna(0.0)
-
-            return Source(sensor, value, total_counts, temporal_counts)
-
         #create one source for each setting (sensor=value) that occurs in the dataset
-        self.sources = {(sensor, value): create_source_for_setting(sensor, value)
+        self.sources = {(sensor, value): self.__create_source_for_setting__(sensor, value, train_data)
                         for sensor, value in self.settings_columns}
 
+        #for source in sorted(self.sources.keys()):
+        #    print self.sources[source]
+
         #maximum number of total observations for any setting
-        self.max_total = max(source.total_counts.sum() for source in self.sources.values())
+        self.max_total = float(max(source.total_counts.sum() for source in self.sources.values()))
         #maximum number of observations in any bin for any setting
-        self.max_temporal = max(source.max_temporal() for source in self.sources.values())
+        self.max_temporal = float(max(source.max_temporal() for source in self.sources.values()))
 
         return self
+
+    def __create_source_for_setting__(self, sensor, value, train_data):
+        """
+        Create a Source that knows how often each target has been observed when sensor=value
+        @param sensor:
+        @param value:
+        @param train_data:
+        @return:
+        """
+
+        def smoothed_temporal_counts(bins_for_target):
+            #if the bin index is -1, the timedelta could not be placed in a regular bin -> remove these observations
+            cleaned_bins_for_target = bins_for_target.values
+            cleaned_bins_for_target = cleaned_bins_for_target[cleaned_bins_for_target >= 0]
+            #count how often current target was seen in each bin (bincount is much faster than pandas value_counts)
+            counts = numpy.bincount(cleaned_bins_for_target, minlength=len(self.bins))
+            #counts[-1] = 0        #if this line is uncommented it reproduces a bug in the original program
+            #perform smoothing; sometimes smoothed contains negative values near 0, round those up to 0
+            smoothed = smooth(counts).clip(0.0)
+            return pandas.Series(smoothed, name=bins_for_target.name)
+
+
+        #retrieve from train_data exactly those rows where the given sensor is set to the given value and select the
+        #corresponding timedelta column for this sensor
+        observations_for_setting = train_data[[(sensor, value), "%s_timedelta" % sensor]]
+        observations_for_setting.columns = ["is_set", "bins"]
+        observations_for_setting = observations_for_setting[observations_for_setting["is_set"] == 1]["bins"]
+
+        #group the observations by the targets
+        bins_grouped_by_target = observations_for_setting.groupby(observations_for_setting.index, sort=False)
+
+        #count how often each target was seen overall and how often each target was seen in each bin
+        total_counts = bins_grouped_by_target.count()
+        temporal_counts = bins_grouped_by_target.apply(smoothed_temporal_counts).unstack()
+
+        #some targets may have never been observed in this setting, fill counts for these with 0.0
+        total_counts = total_counts.reindex(self.target_names).fillna(0.0)
+        temporal_counts = temporal_counts.reindex(self.target_names).fillna(0.0)
+
+        return Source(sensor, value, total_counts, temporal_counts)
 
     #@profile
     def predict(self, test_data, include_conflict_theta=False):
@@ -214,12 +232,17 @@ class TemporalEvidencesClassifier(BaseClassifier):
         test_data_timedeltas = test_data[self.timedelta_columns]
 
         #replace timedeltas with the respective bin index
-        test_data_bins = test_data_timedeltas.apply(self.digitize_timedeltas, axis=1).values
-        #test_timedeltas = test_timedeltas.replace({13:14}, axis=1)   #todo again the bug
+        test_data_bins = test_data_timedeltas.apply(self.digitize_timedeltas, axis=1)
+        #test_data_bins = test_data_bins.replace({13:-1}, axis=1)  #if this line is uncommented it reproduces a bug in the original program
+
+        test_data_bins = test_data_bins.values
 
         #calculate recommendations for each instance in the dataset
         results = [self.__predict_for_instance__(test_data_settings[i], test_data_bins[i], include_conflict_theta)
                    for i in range(len(test_data_bins))]
+        #for i in range(len(test_data_bins)):
+        #    print i
+        #    self.__predict_for_instance__(test_data_settings[i], test_data_bins[i], include_conflict_theta)
 
         return results
 
@@ -234,6 +257,7 @@ class TemporalEvidencesClassifier(BaseClassifier):
         If this parameter is true, it returns also information on recommendation conflict and uncertainty (theta).
         @return: Service recommendations for this instance, optionally including conflict and uncertainty.
         """
+
         current_bin_for_sensor = lambda sensor: int(instance_bin[self.timedelta_column_for_sensor[sensor]])
 
         #find which sensor values are currently set and the timedelta bins for these sensors
@@ -260,6 +284,7 @@ class TemporalEvidencesClassifier(BaseClassifier):
         #print_combined_masses(recommendations, conflict, theta)
 
         #print sorted_recommendations
+        #print "conflict=%.4f, theta=%4f" % (conflict, theta)
 
         if include_conflict_theta:
             return sorted_recommendations, conflict, theta
