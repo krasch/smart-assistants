@@ -1,17 +1,18 @@
 from datetime import datetime
 from math import sqrt
-import os
 
 from sklearn.cross_validation import KFold
 from scipy import stats as scipy_stats
 import pandas
 import numpy
 
-from classifiers.metrics import QualityMetricsCalculator, runtime_metrics, quality_metrics
-import plot
+from experiment import plot
+from experiment.metrics import QualityMetricsCalculator, runtime_metrics, quality_metrics
 
 calculated_stats = ["Mean", "Std deviation", "Confidence interval"]
 
+def delta_in_ms(delta):
+    return delta.seconds*1000.0+delta.microseconds/1000.0
 
 def confidence_interval(data, alpha=0.1):
     """
@@ -60,12 +61,12 @@ class Experiment:
             #perform training
             train_time = datetime.now()
             cls = cls.fit(data_train, target_train)
-            train_time = (datetime.now()-train_time).microseconds/1000.0
+            train_time = delta_in_ms(datetime.now()-train_time)
 
             #apply the classifier on the test data
             test_time = datetime.now()
             recommendations = cls.predict(data_test)
-            test_time = (datetime.now()-test_time).microseconds/1000.0
+            test_time = delta_in_ms(datetime.now()-test_time)
 
             #add measurements for this replication to result collection
             runtimes.append({"Training time": train_time,
@@ -139,11 +140,18 @@ class Results():
         self.quality_stats = quality_stats
         self.runtime_stats = runtime_stats
 
-    def compare_quality(self, metric, statistic):
+    def compare_quality(self, metric, statistic, max_concurrently_available_services=None):
         """
         Grab results for given metric and statistic for all tested classifiers.
         @param metric: Name of one of the quality metrics.
         @param statistic: Which statistic to compare (Mean, Standard deviation, Confidence interval)
+        @param max_concurrently_available_services: At any given time only a limited number of services can be available
+        and can be recommended, e.g. for 10 binary sensors, 10 services are typically available. The only anomaly is
+        right at the beginning of the dataset, where the current status of a sensor is not known, in this case more than
+        10 services can be recommended. However, there will be very few instances where this is the case and
+        recommendation results will be therefore be statistically insignificant. If this parameter is set to any other
+        value than None, the output will be restricted to show only results where the cutoff for the number of
+        recommendations to be shown lies between 1 and max_concurrently_available_services.
         @return: A pandas dataframe with one column for every classifier, listing the calculated statistics for the
         given metric and all cutoffs..
         """
@@ -154,17 +162,20 @@ class Results():
         new_column_names = [cls.name for cls in self.classifiers]
         comparison = self.quality_stats[relevant_columns]
         comparison = comparison.rename(columns={old: new for old, new in zip(relevant_columns, new_column_names)})
+        if not max_concurrently_available_services is None:
+            comparison = comparison.loc[1: max_concurrently_available_services]
         return comparison
 
-    def print_quality_comparison(self):
+    def print_quality_comparison(self, max_concurrently_available_services=None):
         """
         For each of the quality metrics, print a table of confidence intervals. One column for each tested classifier
-        and one row for each tested recommendation cutoff. .
+        and one row for each tested recommendation cutoff.
+        @param max_concurrently_available_services: see `self.compare_quality`
         @return:
         """
         for metric in quality_metrics:
             print "Results for %s" % metric
-            print self.compare_quality(metric, "Confidence interval")
+            print self.compare_quality(metric, "Confidence interval", max_concurrently_available_services)
 
     def print_quality_comparison_at_cutoff(self, cutoff):
         """
@@ -190,15 +201,17 @@ class Results():
         comparison = comparison.rename(columns={old: new for old, new in zip(relevant_columns, new_column_names)})
         print comparison
 
-    def plot_quality_comparison(self, plot_config):
+    def plot_quality_comparison(self, plot_config, max_concurrently_available_services=None):
         """
         For each of the quality metrics, generate an XY-line-plot with one line for each classifier. The X-axis is the
         number of recommendations that are shown to the user, the Y-axis is the metric of interest. Uses the means of
         the measurements.
+        @param plot_config: A function that can be called to get the full path for a plot file.
+        @param max_concurrently_available_services: see `self.compare_quality`
         @return:
         """
         for metric in quality_metrics:
-            results = self.compare_quality(metric, "Mean")
+            results = self.compare_quality(metric, "Mean", max_concurrently_available_services)
             plot.plot_quality_comparison(results, metric, plot_config)
 
 

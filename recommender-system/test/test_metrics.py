@@ -1,8 +1,8 @@
 from numpy.testing import assert_almost_equal
 
-from src.classifiers.metrics import *
+from src.experiment.metrics import *
 from src.classifiers.bayes import NaiveBayesClassifier
-from src.data.kasteren import load_scikit as load_kasteren
+from src.dataset import load_dataset_as_sklearn
 
 
 """
@@ -240,12 +240,12 @@ def test_houseA():
                    0.3643920355519879, 0.36439191983486152]
 
     #perform classification using NaiveBayes on houseA
-    dataset = load_kasteren("houseA")
-    cls = NaiveBayesClassifier(dataset.features, dataset.target_names)
+    dataset = load_dataset_as_sklearn("../datasets/houseA.csv", "../datasets/houseA.config")
+    cls =NaiveBayesClassifier(dataset.features, dataset.target_names)
     cls = cls.fit(dataset.data, dataset.target)
     results = cls.predict(dataset.data)
     metrics = QualityMetricsCalculator(dataset.target, results).calculate()
 
-    assert_almost_equal(metrics["Precision"].values, expected_precision)
-    assert_almost_equal(metrics["Recall"].values, expected_recall)
-    assert_almost_equal(metrics["F1"].values, expected_f1)
+    assert_almost_equal(metrics["Precision"].values, expected_precision, decimal=3)
+    assert_almost_equal(metrics["Recall"].values, expected_recall, decimal=3)
+    assert_almost_equal(metrics["F1"].values, expected_f1, decimal=3)

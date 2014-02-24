@@ -1,72 +1,46 @@
-from collections import defaultdict
-from numpy import array,mean
 import numpy
 
-from profilehooks import profile
-
-def all_elements(distributions):
-    elements=set()
-    for (masses,conflict,theta) in distributions:
-        elements=elements|set(masses.keys())
-    return list(elements)
-
-def arithmetic_mean_combiner(distributions):
-    result_theta=mean(array([theta for (masses,conflict,theta) in distributions]))
-    result_conflict=mean(array([conflict for (masses,conflict,theta) in distributions]))
-    result_masses=dict()
-    for e in all_elements(distributions):
-        result_masses[e]=mean(array([masses.get(e,0.0) for (masses,conflict,theta) in distributions]))
-    return (result_masses,result_conflict,result_theta)
-
 """
-@profile
-def simple_conjunctive_combiner(distributions):
-    def calculate_theta(masses):
-        return 1.0-masses.sum()
-
-    def combine_two((masses1,theta1),(masses2,theta2)):
-        #masses=masses1*masses2+masses1*theta2+theta1*masses2
-        masses=masses1*(masses2+theta2)+masses2*theta1
-        theta=theta1*theta2
-        #conflict=1.0-sum(masses)-theta
-        return masses,theta
-    
-    comb_masses,comb_theta=(distributions[0],calculate_theta(distributions[0]))
-    for dis in distributions[1:]:
-        comb_masses,comb_theta=combine_two((comb_masses,comb_theta),(dis,calculate_theta(dis)))
-    comb_conflict=1.0-comb_masses.sum()-comb_theta
-    return comb_masses,comb_conflict,comb_theta
+This module contains functions related to the Dempster-Shafer theory of evidences.
 """
 
-#using moebius vector
-#@profile
-def simple_conjunctive_combiner(distributions):
+def combine_dempsters_rule(masses):
+    """
+    Implements Dempster's rule of combination. The method makes use of the Moebius transformation and Dempster's rule of
+    commonalities for a faster calculation of the combined masses.
+    For more information see Kennes, R., Computational aspects of the Mobius transformation of graphs,
+    Systems, Man and Cybernetics (Volume:22 ,  Issue: 2 ), http://dx.doi.org/10.1109/21.148425
+
+    @param masses: A list of numpy arrays that all have the same length. Each array contains the mass distribution that
+    a source assigns to the available options.
+    @return: The combined masses, the conflict between the sources and the theta (masses that can not be assigned to any
+    option).
+    """
+
     def mtoq(masses):
-        theta=1.0-masses.sum()
-        q=masses+theta
-        return q,theta
+        #Convert mass vector into commonality vector and calculate theta for this mass vector.
+        theta = 1.0 - masses.sum()
+        q = masses + theta
+        return q, theta
 
-    def qtom(q,theta):
-        masses=q-theta
+    def qtom(q, theta):
+        #Convert commonality vector into mass vector.
+        masses = q - theta
         return masses
-  
-    comb_q,comb_theta=mtoq(distributions[0])
-    for dis in distributions[1:]:
-        q,theta=mtoq(dis)
-        comb_q*=q
-        comb_theta*=theta
-        
-    comb_masses=qtom(comb_q,comb_theta)
-    comb_conflict=1.0-comb_masses.sum()-comb_theta
-    return comb_masses,comb_conflict,comb_theta
 
-def normalized_random_vector(length):
-    v=numpy.random.randint(1,10,length)
-    sum_=v.sum()+10
-    return v/float(sum_)
+    #convert each mass-vector into a q-vector and calculate theta for each mass vector
+    masses_as_q, thetas = zip(*map(mtoq, masses))
 
-len_distributions=2500
-len_q=2500
-distributions=[normalized_random_vector(len_q) for i in range(len_distributions)]
-#distributions=[numpy.array([0.3,0.4,0.2]),numpy.array([0.1,0.1,0.4])]
-simple_conjunctive_combiner(distributions)
+    #combine masses by performing element-wise vector multiplication
+    combined_masses_as_q = reduce(numpy.multiply, masses_as_q)
+
+    #combine thetas by multiplying the thetas
+    combined_theta = reduce(numpy.multiply, thetas)
+
+    #convert masses back from q-form to mass-form
+    combined_masses = qtom(combined_masses_as_q, combined_theta)
+
+    #any remaining mass not assigned to specific target or to theta forms the combined conflict
+    combined_conflict = max(1.0 - combined_masses.sum() - combined_theta, 0.0)
+
+    return combined_masses, combined_conflict, combined_theta
