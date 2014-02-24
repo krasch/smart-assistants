@@ -18,9 +18,10 @@ from classifiers.postprocess import dynamic_cutoff
 """
 This file contains experiments for evaluating the proposed recommender system. The experiments are explained
 in more detail in:
-- the accompanying paper (todo link)
+- the accompanying paper (add link when it article is published online)
 - my dissertation (http://www.diva-portal.org/smash/record.jsf?pid=diva2:650328)
 Each method also contains references to the relevant sections in paper/dissertation.
+You can select which method to run by commenting/uncommenting them at the bottom of this file.
 """
 
 
@@ -171,17 +172,10 @@ def evaluate_training_size(data):
 
     def initialize_experiment():
         experiment = Experiment(data)
-        #experiment.add_classifier(TemporalEvidencesClassifier(dataset.features, dataset.target_names), name="Our method")
+        experiment.add_classifier(TemporalEvidencesClassifier(dataset.features, dataset.target_names), name="Our method")
         experiment.add_classifier(NaiveBayesClassifier(data.features, data.target_names), name="Naive Bayes")
-        experiment.add_classifier(RandomClassifier(data.features, data.target_names), name="Random")
+        #experiment.add_classifier(RandomClassifier(data.features, data.target_names), name="Random")
         return experiment
-
-    def add_index_to_results(res, sizes, times):
-        df = pandas.concat(res, axis=0)
-        df.index = pandas.MultiIndex.from_tuples(zip(sizes, times),
-                                                 names=["Size of dataset", "Elapsed time (days)"])
-        return df
-
 
 
     #the classifiers will be trained with increasingly larger training datasets, create those here
@@ -252,7 +246,11 @@ cls, test_data = generate_trained_classifier(num_sensors=num_sensors,\
 
 
 
+#house A dataset
 dataset = load_dataset_as_sklearn("../datasets/houseA.csv", "../datasets/houseA.config")
+#house B dataset
+
+#perform experiments using selected datasets
 compare_classifiers(dataset, max_concurrently_available_services=14)
 #evaluate_interval_settings(dataset)
 #scatter_conflict_uncertainty(dataset)
