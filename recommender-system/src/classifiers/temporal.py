@@ -1,5 +1,10 @@
-from collections import defaultdict
-from itertools import compress
+# -*- coding: UTF-8 -*-
+"""
+This module implements the proposed classifier, which identifies temporal relations between user actions to generate
+service recommendations. The classifier makes use of Dempster-Shafer theory (see file DS.py) and temporal binning (see
+binning.py).
+"""
+
 import textwrap
 
 import pandas
@@ -7,32 +12,40 @@ import numpy
 
 from profilehooks import profile
 
-from base import BaseClassifier, apply_mask
+from base import BaseClassifier
 from binning import smooth, initialize_bins
 from DS import combine_dempsters_rule
-from postprocess import dynamic_cutoff
 
 
-
+u"""
+As default, the classifier uses bins of width 10 seconds for timedelta ∆t ∈ [0, 60] and 30 seconds for ∆t ∈ (0, 300].
+"""
 default_bins = initialize_bins(0, 60, 10) + initialize_bins(60, 300, 30)
-
-def print_combined_masses(masses,conflict,theta):
-    out_list = ["%s %.4f" % (m, masses[m]) for m in sorted(masses)]
-    out_list.append(", conflict=%.4f, theta=%.4f" % (conflict, theta))
-    print textwrap.fill(" ".join(out_list), initial_indent="", subsequent_indent="    ", width=200)
 
 
 class Source():
     """
-    A source has information about some setting of sensor = value, e.g. which user actions (=targets) where observed
-    in this setting and in temporal
+    A source has information about some setting (sensor=value), e.g. how often user actions (=targets) where observed
+    in this setting in general and how often they where observed in each bin.
     """
 
+    #sources that have no temporal knowledge have insufficient data about the current situation and are discounted
     __no_temporal_knowledge_discount__ = 0.0001
 
-    __has_temporal_knowledge__ = lambda self, bin: bin !=-1
+    #if the bin index is -1, the source has no temporal knowledge about the current situation
+    __has_temporal_knowledge__ = lambda self, bin: bin != -1
 
     def __init__(self, sensor, value, total_counts, temporal_counts):
+        """
+        Initialize the source with all necessary information about the setting represented  by this source.
+        @param sensor: The sensor described by this source, is part of the setting represented by this source.
+        @param value: Second part of the setting sensor=value that this source represents.
+        @param total_counts: A pandas series of counts that state how often each target was observed in this setting;
+        the series is indexed by the names of the targets.
+        @param temporal_counts: A pandas dataframe with one column for every temporal bin. Each column contains counts
+        that state how often each target was observed in this setting in the respective bin. The dataframe is indexed
+        by the names of the targets.
+        """
         self.sensor = sensor
         self.value = value
         self.targets = total_counts.index
@@ -42,26 +55,46 @@ class Source():
         self.temporal_counts = [numpy.array(temporal_counts[col]) for col in temporal_counts.columns]
 
     def name(self):
+        """
+        Obtain a printable name for the source, this name equivalent to the setting this source represents.
+        @return: The name of the source.
+        """
         return self.sensor + "=" + self.value
 
     def max_temporal(self):
         """
-        The maximum number of observations for any bin
+        Calculate the maximum number of observations in any of the temporal intervals.
+        @return: The calculated maximum.
         """
         return max([temporal.sum() for temporal in self.temporal_counts])
 
-
     def counts(self, bin):
         """
+        Lookup how often the targets where observed in the current situation.
+        @param bin: The temporal bin for the current timedelta for the sensor represented by this source (reflects
+        how long the sensor setting has not changed).
+        @return: A numpy array with the same length as self.targets, each item in the result array represents how often
+        the corresponding target has been observed in the current situation.
         """
         if self.__has_temporal_knowledge__(bin):
-           return numpy.copy(self.temporal_counts[bin])
+            return numpy.copy(self.temporal_counts[bin])
         else:
-           return numpy.copy(self.total_counts)
-
+            return numpy.copy(self.total_counts)
 
     #@profile
     def calculate_masses(self, bin, possible_targets_mask, max_total, max_temporal):
+        """
+        Calculate masses that reflect how probable each target is in the current situation, according to this source.
+        @param bin: The temporal bin for the current timedelta for the sensor represented by this source (reflects
+        how long the sensor setting has not changed).
+        @param possible_targets_mask: A numpy array with the same length as self.targets; if an item in the array is 1.0
+        it means that the corresponding target is possible in the current situation, if an item is 0.0, then the
+        corresponding target is not possible.
+        @param max_total: Maximum number of total observations by source.
+        @param max_temporal: Maximum number of observations by any source in any bin.
+        @return: A numpy array with the same length as self.targets; each item in the result array represents the masses
+        that the source attributes to the corresponding target.
+        """
 
         #for all targets look up how many observations this source has in the current bin
         counts = self.counts(bin)
@@ -78,15 +111,12 @@ class Source():
 
         #calculate the mass distribution for the possible targets
         masses = counts * (weight/counts_sum)
-        #self.__print_source_info__(counts, weight, masses)
 
         return masses
 
-
     def __str__(self):
         """
-        For debugging
-        Produces debug output of the total and temporal observations have been counted for this source for every target.
+        For debugging, produces debug output of the total and temporal observations for all targets by this source.
         """
         out = self.name() + "\n"
         for target_index, target in enumerate(self.targets):
@@ -97,7 +127,7 @@ class Source():
 
     def __print_source_info__(self, counts, weight, masses):
         """
-        Utility method for debugging what a source knows about a given situation.
+        For debugging, produces output that summarizes what a source knows about a given situation.
         """
         print "%s=%s (%f)" % (self.sensor, self.value, weight)
         masses_dict = {target: masses[t] for t, target in enumerate(self.targets)}
@@ -112,17 +142,25 @@ class TemporalEvidencesClassifier(BaseClassifier):
     """
     Implements the proposed classifier that uses temporal relationships between user actions to recommend services.
     """
-
     name = "TemporalEvidences"
 
     def __init__(self, features, target_names, bins=default_bins, postprocess=None):
+        """
+        Initialize the classifier.
+        @param features: see `BaseClassifier.__init__()`.
+        @param target_names: see `BaseClassifier.__init__()`.
+        @param bins: A list of interval borders as generated by `initialize_bins`.
+        @param postprocess: A function that can be called to postprocess the generated recommendations in some manner.
+        At the moment, static cutoff and dynamic cutoff are defined as postprocessing methods.
+        @return:
+        """
         BaseClassifier.__init__(self, features, target_names)
         self.bins = bins
+        self.postprocess = postprocess
 
         #make an index that allows fast lookup of index of the correct timedelta column for each sensor
         self.timedelta_column_for_sensor = {sensor: self.timedelta_columns.index("%s_timedelta" % sensor)
                                             for sensor, value in self.settings_columns}
-
 
     def digitize_timedeltas(self, values):
         """
@@ -130,7 +168,6 @@ class TemporalEvidencesClassifier(BaseClassifier):
         @param values: A numpy array of timedeltas.
         @return: A numpy array of bin indexes.
         """
-
         digitized = numpy.digitize(values.values, self.bins)
         #the last bin contains all values that can not be placed in a regular bin
         digitized[digitized == len(self.bins)] = -1
@@ -141,10 +178,10 @@ class TemporalEvidencesClassifier(BaseClassifier):
         Train the classifier.
         @param train_data: A matrix with len(self.features) columns and one row for each instance in the dataset. Each
         row describes a user situation with current sensor settings and information on how long these settings have
-        not changed.
+        not changed. See `dataset.dataset_to_sklearn` for more details.
         @param train_target: An array of targets (length of the array corresponds to the number of rows in train_data).
         Each target represents the action that user performed in the situation described by the corresponding row
-        in train_data.
+        in train_data. See `dataset.dataset_to_sklearn` for more details.
         @return: self-reference for this classifier
         """
 
@@ -159,9 +196,6 @@ class TemporalEvidencesClassifier(BaseClassifier):
         #create one source for each setting (sensor=value) that occurs in the dataset
         self.sources = {(sensor, value): self.__create_source_for_setting__(sensor, value, train_data)
                         for sensor, value in self.settings_columns}
-
-        #for source in sorted(self.sources.keys()):
-        #    print self.sources[source]
 
         #maximum number of total observations for any setting
         self.max_total = float(max(source.total_counts.sum() for source in self.sources.values()))
@@ -233,16 +267,12 @@ class TemporalEvidencesClassifier(BaseClassifier):
 
         #replace timedeltas with the respective bin index
         test_data_bins = test_data_timedeltas.apply(self.digitize_timedeltas, axis=1)
-        #test_data_bins = test_data_bins.replace({13:-1}, axis=1)  #if this line is uncommented it reproduces a bug in the original program
-
+        #test_data_bins = test_data_bins.replace({len(self.bins): -1}, axis=1)  #if this line is uncommented it reproduces a bug in the original program
         test_data_bins = test_data_bins.values
 
         #calculate recommendations for each instance in the dataset
         results = [self.__predict_for_instance__(test_data_settings[i], test_data_bins[i], include_conflict_theta)
                    for i in range(len(test_data_bins))]
-        #for i in range(len(test_data_bins)):
-        #    print i
-        #    self.__predict_for_instance__(test_data_settings[i], test_data_bins[i], include_conflict_theta)
 
         return results
 
@@ -258,10 +288,9 @@ class TemporalEvidencesClassifier(BaseClassifier):
         @return: Service recommendations for this instance, optionally including conflict and uncertainty.
         """
 
-        current_bin_for_sensor = lambda sensor: int(instance_bin[self.timedelta_column_for_sensor[sensor]])
-
         #find which sensor values are currently set and the timedelta bins for these sensors
-        currently_set = apply_mask(self.settings_columns, instance)
+        currently_set = self.currently_set(instance)
+        current_bin_for_sensor = lambda sensor: int(instance_bin[self.timedelta_column_for_sensor[sensor]])
         bins_for_current_settings = [current_bin_for_sensor(sensor) for sensor, value in currently_set]
 
         #calculate which targets (user actions) are currently possible (possible targets are represented by 1,
@@ -275,16 +304,13 @@ class TemporalEvidencesClassifier(BaseClassifier):
         #combine the masses using Dempster's combination rule
         combined_masses, conflict, theta = combine_dempsters_rule(masses)
 
-        #map resulting masses to the possible targets and sort
+        #map resulting masses to the possible targets, apply postprocessing and sort recommendations
         recommendations = {target: target_mass for target, target_mass, target_is_possible
                            in zip(self.target_names, combined_masses, possible_targets_mask)
                            if target_is_possible}
+        if not self.postprocess is None:
+            recommendations = self.postprocess(recommendations, conflict, theta)
         sorted_recommendations = sorted(recommendations, key=recommendations.get, reverse=True)
-
-        #print_combined_masses(recommendations, conflict, theta)
-
-        #print sorted_recommendations
-        #print "conflict=%.4f, theta=%4f" % (conflict, theta)
 
         if include_conflict_theta:
             return sorted_recommendations, conflict, theta
@@ -292,3 +318,32 @@ class TemporalEvidencesClassifier(BaseClassifier):
             return sorted_recommendations
 
              
+def configure_static_cutoff(cutoff):
+    """
+    Configure a function that shortens the recommendations list to contain only the best `cutoff` recommendations
+    @param cutoff: The number of recommendations to return.
+    @return:  Function that can be called to actually perform the static cutoff for a list of generated recommendations.
+    """
+    def perform_static_cutoff(recommendations, conflict=None, theta=None):
+        ordered = sorted(recommendations.items(), key=lambda (element, mass): mass, reverse=True)
+        return {key: value for (key, value) in ordered[0:cutoff]}
+    return perform_static_cutoff
+
+
+def configure_dynamic_cutoff(max_conflict, max_theta, cutoff):
+    """
+    Configure a function that dynamically shortens the recommendations list if requirements for conflict and theta
+    are fulfilled.
+    @param max_conflict: If conflict is higher than max_conflict, do not perform the dynamic cutoff.
+    @param max_theta: If theta is higher than max_cutoff, do not perform the dynamic cutoff.
+    @param cutoff: If requirements for conflict and theta are fulfilled, return only the best `cutoff` elements.
+    @return: Function that can be called to actually perform the dynamic cutoff for a list of generated recommendations.
+    """
+    static_cutoff = configure_static_cutoff(cutoff)
+
+    def perform_dynamic_cutoff(recommendations, conflict, theta):
+        if conflict < max_conflict and theta < max_theta:
+            return static_cutoff(recommendations)
+        else:
+            return recommendations
+    return perform_dynamic_cutoff

@@ -1,3 +1,8 @@
+# -*- coding: UTF-8 -*-
+"""
+This module contains functions for reading datasets and converting them to the scikit-learn and arff (weka) formats.
+"""
+
 import os.path
 from ConfigParser import SafeConfigParser
 
@@ -5,9 +10,6 @@ from sklearn.datasets.base import Bunch
 import numpy
 import pandas
 
-"""
-This module contains methods for reading datasets and converting them to scikit-learn and arff (weka) formats.
-"""
 
 def load_dataset(path_to_csv, path_to_config=None):
     """

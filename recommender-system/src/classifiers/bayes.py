@@ -1,8 +1,9 @@
+# -*- coding: UTF-8 -*-
+
 import pandas
 import numpy
 
-from base import BaseClassifier, apply_mask
-from profilehooks import profile
+from base import BaseClassifier
 
 
 class NaiveBayesClassifier(BaseClassifier):
@@ -62,7 +63,6 @@ class NaiveBayesClassifier(BaseClassifier):
             normalized_counts = {setting: normalized_counts[setting].values for setting in normalized_counts.columns}
             return normalized_counts
 
-
         #load training data and targets into pandas dataframe
         train_data = pandas.DataFrame(train_data)
         train_data.columns = self.features
@@ -75,11 +75,8 @@ class NaiveBayesClassifier(BaseClassifier):
         self.priors = calculate_priors(train_data)
         self.counts = calculate_counts_per_setting(train_data)
 
-        #self.print_counts_and_priors()
-
         return self
 
-    #@profile
     def predict(self, test_data):
         """
         Calculate recommendations for the test_data
@@ -100,7 +97,7 @@ class NaiveBayesClassifier(BaseClassifier):
         def predict_for_instance(instance):
 
             #find which sensor values are currently set
-            currently_set = apply_mask(self.settings_columns, instance)
+            currently_set = self.currently_set(instance)
 
             #calculate which targets (user actions) are currently possible (possible targets are represented by 1,
             #not currently possible targets are represented by 0)
@@ -127,8 +124,11 @@ class NaiveBayesClassifier(BaseClassifier):
 
         return results
 
-
     def print_counts_and_priors(self):
+        """
+        Simple debugging method that prints out the calculated counts and priors after the classifier has been trained.
+        @return:
+        """
         line_to_string = lambda target, count: "%s %.2f" % (target, count)
         print "\n".join([line_to_string(target, count) for target, count in self.priors.iteritems()])
 

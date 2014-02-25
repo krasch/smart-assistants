@@ -1,17 +1,18 @@
-import numpy
+# -*- coding: UTF-8 -*-
+"""
+This module contains functions for dealing with temporal bins in the TemporalClassifier.
+"""
 
-"""
-This module contains methods for
-"""
+import numpy
 
 
 def initialize_bins(start, end, width):
     """
-    Generate a list of interval borders
+    Generate a list of interval borders.
     @param start: The left border of the first interval.
     @param end: The left border of the last interval.
     @param width: The width of each interval.
-    @return:
+    @return: The list of interval borders.
     """
     return list(range(start + width, end + width, width))
 

@@ -1,3 +1,8 @@
+# -*- coding: UTF-8 -*-
+"""
+This module contains functions for plotting the results of evaluation experiments.
+"""
+
 import os
 
 import matplotlib.pyplot as plt

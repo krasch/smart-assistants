@@ -1,3 +1,8 @@
+# -*- coding: UTF-8 -*-
+"""
+This module defines an evaluation framework for performing cross-validation experiment with the implemented classifiers.
+"""
+
 from datetime import datetime
 from math import sqrt
 
@@ -11,8 +16,13 @@ from experiment.metrics import QualityMetricsCalculator, runtime_metrics, qualit
 
 calculated_stats = ["Mean", "Std deviation", "Confidence interval"]
 
+
 def delta_in_ms(delta):
+    """
+    Convert a timedelta object to milliseconds.
+    """
     return delta.seconds*1000.0+delta.microseconds/1000.0
+
 
 def confidence_interval(data, alpha=0.1):
     """
@@ -44,6 +54,7 @@ class Experiment:
 
     def run_with_classifier(self, cls, data_for_folds):
         """
+        Perform cross-validation with one classifier.
         @param data_for_folds: Contains one list of True/False values for each of the folds to be run. Each list states
         for every item of the dataset, whether the item is in the current fold part of the training dataset or the
         test dataset.
@@ -134,8 +145,17 @@ class Results():
     """
     Class that contains the results of a cross-validation experiment. Allows to print and to plot results.
     """
-
     def __init__(self, classifiers, quality_stats, runtime_stats):
+        """
+        @param classifiers: The classifiers that where used in the experiment.
+        @param quality_stats: A pandas dataframe with 12 columns for each classifier (one column for each possible
+        combination of collected quality metrics and calculated statistics). The index of the dataframe is the cutoff,
+        i.e. how many recommendations where shown to the user.
+        @param runtime_stats: A pandas dataframe with 9 columns for each classifier (one column for each possible
+        combination of collected runtime metrics and calculated statistics). The index of the dataframe are the names of
+        the tested classifiers.
+        @return:
+        """
         self.classifiers = classifiers
         self.quality_stats = quality_stats
         self.runtime_stats = runtime_stats

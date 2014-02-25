@@ -1,3 +1,8 @@
+# -*- coding: UTF-8 -*-
+"""
+This module contains synthetic dataset generators which can be used to evaluate the scalability of the classifiers.
+"""
+
 import random
 from datetime import datetime, timedelta
 
@@ -7,18 +12,13 @@ import numpy
 from dataset import events_to_dataset, dataset_to_sklearn
 from classifiers.temporal import TemporalEvidencesClassifier, Source
 
-
-"""
-This module contains synthetic dataset generators, which can be used to evaluate the scalability of the classifiers.
-"""
-
 def generate_random_events(sensors, num_events, at_least_one_per_setting=False):
     """
     Generates a sequence of random sensor events, each described by "timestamp", "sensor", "value"
     @param sensors: A dictionary with sensor names as keys and possible sensor settings as values.
     @param num_events: The number of random events to generate.
     @param at_least_one_per_setting: Whether the event-list should at least contain one event per possible sensor
-    setting, If this parameter is true and num_events < len(at_least_one_per_setting) then len(at_least_one_per_setting)
+    setting, If this parameter is true and num_events < #possible_settings then #possible_settings
     will be returned,
     @return: A pandas dataframe with three columns "timestamp", "sensor", "value".
     """
@@ -47,6 +47,7 @@ def generate_random_events(sensors, num_events, at_least_one_per_setting=False):
 
     return pandas.DataFrame(events, columns=["timestamp", "sensor", "value"])
 
+
 def generate_synthetic_dataset(num_sensors, nominal_values_per_sensor, num_instances):
     """
     Generate a random dataset in the format required by scikit-learn, see dataset.dataset_to_sklearn for more details.
@@ -66,7 +67,17 @@ def generate_synthetic_dataset(num_sensors, nominal_values_per_sensor, num_insta
 
     return dataset_to_sklearn(dataset)
 
+
 def generate_trained_classifier(num_sensors, nominal_values_per_sensor, num_test_instances):
+    """
+    If we just want to evaluate the scalability of service recommendations, we can skip the learning phase and fill
+    the classifier with random observations. This method creates such a "trained" classifier and returns also a
+    compatible test dataset for running the scalability experiments.
+    @param num_sensors: Number of different sensors in the dataset.
+    @param nominal_values_per_sensor: Number of possible settings for each sensor.
+    @param num_test_instances: Number of data instances in the test dataset.
+    @return: A tuple of trained classifier and a compatible test dataset.
+    """
 
     def generate_classifier(sensors):
         #create a source for the setting sensor=value, fill it with random observations

@@ -1,3 +1,5 @@
+# -*- coding: UTF-8 -*-
+
 import random
 
 import pandas
@@ -7,13 +9,12 @@ from base import BaseClassifier
 
 class RandomClassifier(BaseClassifier):
     """
-    A classifier that gives random service recommendations, use as baseline in experiments.
+    A classifier that gives random service recommendations, used as baseline in the experiments.
     """
+    name = "Random"
 
-    name="Random"
-
-    def __init__(self,features,target_names):
-        BaseClassifier.__init__(self,features,target_names)
+    def __init__(self, features, target_names):
+        BaseClassifier.__init__(self, features, target_names)
 
     def fit(self, train_data,train_target):
         return self
@@ -27,7 +28,7 @@ class RandomClassifier(BaseClassifier):
 
         #to predict for instance: randomly order the possible targets
         def predict_for_instance(instance):
-            currently_set = self.instance_settings(instance)
+            currently_set = self.currently_set(instance)
             possible_targets_mask = self.possible_targets_mask(currently_set)
             possible_targets = [target for target, is_possible
                                 in zip(self.target_names, possible_targets_mask) if is_possible]

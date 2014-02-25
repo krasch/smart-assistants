@@ -1,3 +1,8 @@
+# -*- coding: UTF-8 -*-
+"""
+This module contains functions for calculating evaluation metrics for the generated service recommendations.
+"""
+
 import numpy
 import pandas
 
@@ -99,7 +104,7 @@ class QualityMetricsCalculator():
         #action and the number of false positives
         true_positives = self.true_positives(action)
         total_occurrences = len(self.results[self.results.index == action])
-        total_occurrences = pandas.Series(total_occurrences, index = true_positives.index)
+        total_occurrences = pandas.Series(total_occurrences, index=true_positives.index)
         false_negatives = total_occurrences - true_positives["TP"]
 
         false_negatives = pandas.DataFrame(false_negatives, columns=["FN"])

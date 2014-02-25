@@ -1,3 +1,5 @@
+# -*- coding: UTF-8 -*-
+
 import os
 import timeit
 
@@ -10,9 +12,9 @@ from experiment.metrics import results_as_dataframe
 from experiment import plot
 from classifiers.randomc import RandomClassifier
 from classifiers.bayes import NaiveBayesClassifier
-from classifiers.temporal import TemporalEvidencesClassifier
+from classifiers.temporal import TemporalEvidencesClassifier, configure_dynamic_cutoff
 from classifiers.binning import initialize_bins
-from classifiers.postprocess import dynamic_cutoff
+
 
 
 """
@@ -79,7 +81,7 @@ def evaluate_interval_settings(data):
 
     for (name, bins) in intervals_to_test:
         experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names,
-                                  bins=bins, name=name))
+                                  bins=bins), name=name)
 
     results = experiment.run(folds=10)
     results.print_runtime_comparison()
@@ -137,8 +139,8 @@ def evaluate_dynamic_cutoff(data):
     print "Evaluating use of dynamic cutoff methods"
     experiment = Experiment(data)
     methods_to_test = [("Fixed cutoff", None),
-                       ("dynamic cutoff=4", dynamic_cutoff(1.0, 0.4, 4)),
-                       ("dynamic cutoff=2", dynamic_cutoff(1.0, 0.4, 2))]
+                       ("dynamic cutoff=4", configure_dynamic_cutoff(1.0, 0.4, 4)),
+                       ("dynamic cutoff=2", configure_dynamic_cutoff(1.0, 0.4, 2))]
 
     for name, method in methods_to_test:
         experiment.add_classifier(TemporalEvidencesClassifier(data.features, data.target_names,
@@ -251,9 +253,9 @@ dataset = load_dataset_as_sklearn("../datasets/houseA.csv", "../datasets/houseA.
 #house B dataset
 
 #perform experiments using selected datasets
-compare_classifiers(dataset, max_concurrently_available_services=14)
+#compare_classifiers(dataset, max_concurrently_available_services=14)
 #evaluate_interval_settings(dataset)
 #scatter_conflict_uncertainty(dataset)
-#evaluate_dynamic_cutoff(dataset)
+evaluate_dynamic_cutoff(dataset)
 #evaluate_training_size(dataset)
 #scalability_experiment()
