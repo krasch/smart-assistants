@@ -1,4 +1,8 @@
 # -*- coding: UTF-8 -*-
+"""
+This module contains some additional functions for exploring the data and the recommendation results produced
+by the different classifiers.
+"""
 
 import os
 import datetime
@@ -12,11 +16,6 @@ from experiment import plot
 from experiment.metrics import QualityMetricsCalculator
 from experiment.experiment_framework import delta_in_ms
 from dataset import load_dataset_as_sklearn
-
-"""
-This module contains some additional functions for exploring the data and the recommendation results produced
-by the different classifiers.
-"""
 
 
 #store plots in ../plots/
@@ -140,8 +139,8 @@ def histogram_compare_cutoffs(data):
 dataset = load_dataset_as_sklearn("../datasets/houseA.csv", "../datasets/houseA.config")
 #dataset = load_dataset_as_sklearn("../datasets/houseB.csv",)
 
-#plot_observations(dataset)
-confusion_matrix(dataset)
+#Show which actions typically follow a given user action.
+plot_observations(dataset)
+#confusion_matrix(dataset)
 #histogram_compare_methods(dataset)
 #histogram_compare_cutoffs(dataset)
-

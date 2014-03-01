@@ -119,4 +119,3 @@ def generate_trained_classifier(num_sensors, nominal_values_per_sensor, num_test
 
     return cls, data
 
-

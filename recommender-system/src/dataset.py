@@ -67,7 +67,7 @@ def load_dataset_as_sklearn(path_to_csv, path_to_config=None):
     "timestamp", "sensor", "value". The timestamp must be in a format that is readable by pandas.
     @param path_to_config: Path where an optional config file can be found. Please look at the file "houseA.config" for
     how to structure this file.
-    @return: The resulting dataset.
+    @return: The resulting dataset, see `dataset_to_sklearn`.
     """
     data = load_dataset(path_to_csv, path_to_config)
     return dataset_to_sklearn(data)
@@ -159,7 +159,7 @@ def events_to_dataset(events, name, excluded_sensors, excluded_actions):
     actions = extract_actions()
 
     #create dataset with one row per use action and two columns for each sensor:
-    #column $sensor contains sensor values, column $sensor (timedelta) contains time passed since the sensor value
+    #column "sensor" contains sensor values, column "sensor (timedelta)" contains time passed since the sensor value
     #changed at the time of the action corresponding to the current row
     sensors = events["sensor"].unique()
     data = pandas.concat([data_for_sensor(sensor, actions) for sensor in sorted(sensors)], axis=1)
@@ -195,10 +195,38 @@ def convert_timedeltas(timedelta_data):
 def dataset_to_sklearn(data):
     """
     Convert the dataset into one that can be used by the scikit-learn library [http://scikit-learn.org]
+
+    For a dataset with two binary sensors and 5 instances, the input to this method might look like this:
+
+        s0  s0_timedelta  s1  s1_timedelta action    action_timestamp
+    0  NaN           NaT  v0      00:00:25  s0=v0 2013-01-01 00:05:48
+    1   v0      00:06:10  v0      00:06:35  s0=v1 2013-01-01 00:11:58
+    2   v1      00:00:32  v0      00:07:07  s1=v1 2013-01-01 00:12:30
+    3   v1      00:01:10  v1      00:00:38  s1=v0 2013-01-01 00:13:08
+    4   v1      00:02:15  v0      00:01:05  s1=v1 2013-01-01 00:14:13
+
+    Since scikit-learn can not handle multi-value nominal attributes the sensor columns must be converted into binary
+    features, additionally python timestamps must be converted into seconds:
+
+           (s0, v0)  (s0, v1)  (s1, v0)  (s1, v1)  s0_timedelta  s1_timedelta   action   action_timestamp
+    0       NaN       NaN         1         0           NaN            25       s0=v0 2013-01-01 00:05:48
+    1         1         0         1         0           370           395       s0=v1 2013-01-01 00:11:58
+    2         0         1         1         0            32           427       s1=v1 2013-01-01 00:12:30
+    3         0         1         0         1            70            38       s1=v0 2013-01-01 00:13:08
+    4         0         1         1         0           135            65       s1=v1 2013-01-01 00:14:13
+
+
+    The method returns a scikit `Bunch` object that contains:
+       name - the name of the dataset
+       data - the binarized data as shown above, but without the action and action_timestamp columns, as a numpy 2D array
+       target - the contents of the action column, as a numpy array
+       features - a list of the column names of the binarized dataset (without action and action_timestamp columns)
+       times - the content of the action_timestamp column, as a numpy array
+       target_names - a sorted list of all distinct values in the action column
+
     @param data: The dataset as produced by `load_dataset`.
     @return: The dataset in scikit-learn format.
     """
-
     #convert a nominal attribute to several binary features, one for each attribute value
     #e.g."door" [open/close] converts to "door=open" (can be 1 or 0) and "door=closed)" (can be 1 or 0)
     def attribute_to_binary(attribute_data):

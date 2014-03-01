@@ -1,3 +1,7 @@
+"""
+This module tests the implementation of Dempster-Shafer theory.
+"""
+
 import numpy
 from numpy.testing import assert_almost_equal
 from profilehooks import profile

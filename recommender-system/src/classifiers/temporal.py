@@ -207,13 +207,9 @@ class TemporalEvidencesClassifier(BaseClassifier):
     def __create_source_for_setting__(self, sensor, value, train_data):
         """
         Create a Source that knows how often each target has been observed when sensor=value
-        @param sensor:
-        @param value:
-        @param train_data:
-        @return:
         """
 
-        def smoothed_temporal_counts(bins_for_target):
+        def smooth_temporal_counts(bins_for_target):
             #if the bin index is -1, the timedelta could not be placed in a regular bin -> remove these observations
             cleaned_bins_for_target = bins_for_target.values
             cleaned_bins_for_target = cleaned_bins_for_target[cleaned_bins_for_target >= 0]
@@ -223,6 +219,26 @@ class TemporalEvidencesClassifier(BaseClassifier):
             #perform smoothing; sometimes smoothed contains negative values near 0, round those up to 0
             smoothed = smooth(counts).clip(0.0)
             return pandas.Series(smoothed, name=bins_for_target.name)
+
+        def calculate_total_counts(bins_grouped_by_target):
+            if len(bins_grouped_by_target) > 0:
+               total_counts = bins_grouped_by_target.count()
+               #some targets may have never been observed in this setting, fill counts for these with 0.0
+               total_counts = total_counts.reindex(self.target_names).fillna(0.0)
+            else:
+               #have no observations at all for this setting
+               total_counts = pandas.Series(0.0, index=self.target_names)
+            return total_counts
+
+        def calculate_temporal_counts(bins_grouped_by_target):
+            if len(bins_grouped_by_target) > 0:
+               temporal_counts = bins_grouped_by_target.apply(smooth_temporal_counts).unstack()
+               #some targets may have never been observed in this setting, fill counts for these with 0.0
+               temporal_counts = temporal_counts.reindex(self.target_names).fillna(0.0)
+            else:
+               #have no observations at all for this setting
+               temporal_counts = pandas.DataFrame(0.0, index=self.target_names, columns=range(0, len(self.bins)))
+            return temporal_counts
 
 
         #retrieve from train_data exactly those rows where the given sensor is set to the given value and select the
@@ -235,12 +251,8 @@ class TemporalEvidencesClassifier(BaseClassifier):
         bins_grouped_by_target = observations_for_setting.groupby(observations_for_setting.index, sort=False)
 
         #count how often each target was seen overall and how often each target was seen in each bin
-        total_counts = bins_grouped_by_target.count()
-        temporal_counts = bins_grouped_by_target.apply(smoothed_temporal_counts).unstack()
-
-        #some targets may have never been observed in this setting, fill counts for these with 0.0
-        total_counts = total_counts.reindex(self.target_names).fillna(0.0)
-        temporal_counts = temporal_counts.reindex(self.target_names).fillna(0.0)
+        total_counts = calculate_total_counts(bins_grouped_by_target)
+        temporal_counts = calculate_temporal_counts(bins_grouped_by_target)
 
         return Source(sensor, value, total_counts, temporal_counts)
 

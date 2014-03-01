@@ -1,6 +1,7 @@
 """
-Test the proposed classifier with a synthetically generated dataset.
+This module tests the proposed classifier (classifiers/temporal.py) with a synthetically generated dataset.
 """
+
 import json
 
 from numpy.testing import assert_array_equal, assert_equal, assert_almost_equal
@@ -57,6 +58,10 @@ def test_recommend():
         assert_recommendations_equal(actual, expected)
 
 
+"""
+Below here are only utility functions.
+"""
+
 def sources_to_json(sources, json_file):
     def source_to_dict(source):
         """
@@ -103,22 +108,5 @@ def assert_recommendations_equal(actual, expected):
     assert_almost_equal(actual_theta, expected_theta)
 
 
-"""
-def generate_testdata():
-    from src.experiment.synthetic import generate_random_events
-
-    num_sensors = 5
-    nominal_values_per_sensor = 3
-    num_instances = 500
-
-    sensor_settings = set("v%d" % id for id in range(nominal_values_per_sensor))
-    sensor_name = lambda id: "s%d" % id
-    sensors = {sensor_name(id): sensor_settings for id in range(num_sensors)}
-
-    events = generate_random_events(sensors, num_instances)
-    events = events.set_index("timestamp")
-    events.to_csv("testdata.csv")
-    assert(False)
-"""
 
 
