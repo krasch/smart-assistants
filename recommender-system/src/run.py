@@ -2,13 +2,13 @@
 Use this module to run the experiments described in:
 - the accompanying paper "An unsupervised recommender system for smart homes" (add link when it article is online)
 - my dissertation (http://www.diva-portal.org/smash/record.jsf?pid=diva2:650328)
-Short descriptions of the experiments can also be found in `experiment.paper_experiments.py`
+Short descriptions of the experiments can also be found in `evaluation/paper_experiments.py`
 Additional methods for examining a dataset and evaluating recommendation results can also be found in `examine.py`.
 """
 
 import os
 
-from experiment.paper_experiments import *
+from evaluation.paper_experiments import *
 from dataset import load_dataset_as_sklearn
 
 #per default store plots in ../plots/
@@ -43,19 +43,19 @@ Select the experiments you want to run by commenting/uncommenting.
 """
 
 #compare quality and runtimes of several classifiers for one dataset
-experiment.compare_classifiers()
+#experiment.compare_classifiers()
 
 #evaluate how the proposed recommender system copes with varying interval widths and Delta t_max settings.
-#evaluate_interval_settings(dataset)
+#experiment.evaluate_interval_settings()
 
 #scatter conflict versus uncertainty to find regions of uncertainty/conflict where the algorithm is more/less successful
-#experiment.scatter_conflict_uncertainty()
+experiment.scatter_conflict_uncertainty()
 
 #evaluate the benefit of dynamic cutoff methods, i.e. show less recommendations if uncertainty and conflict are low
-#evaluate_dynamic_cutoff(dataset, max_concurrently_available_services=14)
+#experiment.evaluate_dynamic_cutoff()
 
 #evaluate how the classifiers behave for different sizes of the training dataset
-#evaluate_training_size(dataset)
+#experiment.evaluate_training_size()
 
 #evaluate how the proposed recommendation algorithm scales for larger datasets using synthetic data
 #scalability_experiment()

@@ -13,8 +13,8 @@ import os
 import numpy
 import pandas
 
-from evaluation.experiment_framework import Experiment
-from evaluation.metrics import results_as_dataframe
+from evaluation.experiment import Experiment
+from evaluation.metrics import results_as_dataframe, quality_metrics
 from evaluation import plot
 from classifiers.randomc import RandomClassifier
 from classifiers.bayes import NaiveBayesClassifier
@@ -28,6 +28,18 @@ default_plot_directory = os.path.join(os.pardir, "plots")
 class PaperExperiments():
 
     def __init__(self, data, cutoff_results_at=None, plot_directory=default_plot_directory, img_type="pdf"):
+        """
+        Initialize the experimental framework.
+        @param data: The dataset on which to test the classifiers.
+        @param cutoff_results_at: Cut the recommendation list at cutoff_results_at.  At any given time only a limited
+        number of services can be available and can be recommended, e.g. for 10 binary sensors, 10 services are typically
+        available. The only anomaly is right at the beginning of the dataset, where the current status of a sensor is not
+        known, in this case more than 10 services can be recommended. However, there will be very few instances where
+        this is the case and recommendation results can therefore be statistically insignificant.
+        @param plot_directory: Base directory in which to store plots.
+        @param img_type: Image type for the plots.
+        @return:
+        """
         self.data = data
         self.plot_directory = plot_directory
         self.img_type = img_type
@@ -37,7 +49,6 @@ class PaperExperiments():
         """
         Compare quality and runtimes of several classifiers for one dataset. Performs 10-fold cross-validation. Details
         for this experiment can be found in the paper in Section 6.4 and in the dissertation in Section 5.5.4,
-        @param max_concurrently_available_services: todo
         """
         print "Compare classifiers for dataset " + self.data.name
         experiment = Experiment(self.data)
@@ -47,10 +58,11 @@ class PaperExperiments():
         results = experiment.run(folds=10)
 
         results.print_runtime_comparison()
-        results.print_quality_comparison(self.cutoff_results_at)
+        results.print_quality_comparison(metrics=["Recall", "Precision", "F1"], cutoff_results_at=self.cutoff_results_at)
 
         plot_conf = plot.plot_config(self.plot_directory, sub_dirs=[self.data.name], img_type=self.img_type)
-        results.plot_quality_comparison(plot_conf, self.cutoff_results_at)
+        results.plot_quality_comparison(metrics=["Recall", "Precision", "F1"], plot_config=plot_conf,
+                                        cutoff_results_at=self.cutoff_results_at)
 
 
     def evaluate_interval_settings(self):
@@ -59,7 +71,7 @@ class PaperExperiments():
         for this experiment can be found in the paper in Section 6.5 and in the Dissertation in Section 5.5.6.
         """
         print "Comparing different interval settings"
-        experiment = Experiment()
+        experiment = Experiment(self.data)
 
         intervals_to_test = [#test various settings for delta t_max
                              ("Delta t_max=10s",   initialize_bins(start=0, end=10, width=10)),
@@ -68,7 +80,7 @@ class PaperExperiments():
                              ("Delta t_max=60s",   initialize_bins(start=0, end=60, width=10)),
                              ("Delta t_max=120s",  initialize_bins(start=0, end=60, width=10) +
                                                    initialize_bins(start=60, end=120, width=30)),
-                             ("Delta t_max=1200s", initialize_bins(start=0, end=60, width=10)+
+                             ("Delta t_max=1200s", initialize_bins(start=0, end=60, width=10) +
                                                    initialize_bins(start=60, end=1200, width=30)),
                              #test various interval widths
                              ("all intervals 2s wide",   initialize_bins(start=0, end=300, width=2)),
@@ -84,9 +96,7 @@ class PaperExperiments():
                                       bins=bins), name=name)
 
         results = experiment.run(folds=10)
-        results.print_runtime_comparison()
-        results.print_quality_comparison_at_cutoff(cutoff=1)
-
+        results.print_quality_comparison_at_cutoff(cutoff=1, metrics=["Recall", "Precision", "F1"])
 
     def scatter_conflict_uncertainty(self):
         """
@@ -129,11 +139,10 @@ class PaperExperiments():
         plot.conflict_uncertainty_scatter(not_found_within, conf)
 
 
-    def evaluate_dynamic_cutoff(self, max_concurrently_available_services):
+    def evaluate_dynamic_cutoff(self):
         """
         Evaluates the benefit of dynamic cutoff methods, i.e. show less recommendations if uncertainty and conflict are low.
         Further details for this experiment can be found in the paper in Section 6.6 and the dissertation in Section 5.5.7
-        @param max_concurrently_available_services:
         """
         print "Evaluating use of dynamic cutoff methods"
         experiment = Experiment(self.data)
@@ -145,7 +154,7 @@ class PaperExperiments():
             experiment.add_classifier(TemporalEvidencesClassifier(self.data.features, self.data.target_names,
                                       postprocess=method), name=name)
         results = experiment.run(folds=10)
-        results.print_quality_comparison(max_concurrently_available_services)
+        results.print_quality_comparison(quality_metrics, self.cutoff_results_at)
 
 
     def evaluate_training_size(self):
@@ -154,8 +163,10 @@ class PaperExperiments():
         experiment can be found in the dissertation in Section 5.5.5
         """
 
-        elapsed_time_seconds = lambda end: (end - self.data.times[0]).days*24*60*60 + (end-self.data.times[0]).seconds
-        elapsed_time_days = lambda end: elapsed_time_seconds(end)/float(24*60*60)
+        elapsed_time = lambda end: end - self.data.times[0]
+        timedelta_to_seconds = lambda td: int(td.item()/(1000.0*1000.0*1000.0))
+        seconds_to_days = lambda seconds: seconds//float(24*60*60)
+        elapsed_time_days = lambda end: seconds_to_days(timedelta_to_seconds(elapsed_time(end)))
 
         def divide_dataset():
             #how many items in training dataset

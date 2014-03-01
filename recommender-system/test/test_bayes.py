@@ -4,7 +4,7 @@ This module tests the implementation of the Naive Bayes classifier.
 
 from numpy.testing import assert_almost_equal
 
-from src.experiment.metrics import *
+from src.evaluation.metrics import *
 from src.classifiers.bayes import NaiveBayesClassifier
 from src.dataset import load_dataset_as_sklearn
 

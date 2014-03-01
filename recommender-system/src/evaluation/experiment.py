@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 """
-This module defines an evaluation framework for performing cross-validation experiment with the implemented classifiers.
+This module defines an evaluation framework for performing cross-validation experiments with the implemented classifiers.
 """
 
 from datetime import datetime
@@ -160,18 +160,18 @@ class Results():
         self.quality_stats = quality_stats
         self.runtime_stats = runtime_stats
 
-    def compare_quality(self, metric, statistic, max_concurrently_available_services=None):
+    def compare_quality(self, metric, statistic, cutoff_results_at=None):
         """
         Grab results for given metric and statistic for all tested classifiers.
         @param metric: Name of one of the quality metrics.
         @param statistic: Which statistic to compare (Mean, Standard deviation, Confidence interval)
-        @param max_concurrently_available_services: At any given time only a limited number of services can be available
+        @param cutoff_results_at: At any given time only a limited number of services can be available
         and can be recommended, e.g. for 10 binary sensors, 10 services are typically available. The only anomaly is
         right at the beginning of the dataset, where the current status of a sensor is not known, in this case more than
         10 services can be recommended. However, there will be very few instances where this is the case and
         recommendation results will be therefore be statistically insignificant. If this parameter is set to any other
         value than None, the output will be restricted to show only results where the cutoff for the number of
-        recommendations to be shown lies between 1 and max_concurrently_available_services.
+        recommendations to be shown lies between 1 and this parameter.
         @return: A pandas dataframe with one column for every classifier, listing the calculated statistics for the
         given metric and all cutoffs..
         """
@@ -182,56 +182,61 @@ class Results():
         new_column_names = [cls.name for cls in self.classifiers]
         comparison = self.quality_stats[relevant_columns]
         comparison = comparison.rename(columns={old: new for old, new in zip(relevant_columns, new_column_names)})
-        if not max_concurrently_available_services is None:
-            comparison = comparison.loc[1: max_concurrently_available_services]
+        if not cutoff_results_at is None:
+            comparison = comparison.loc[1: cutoff_results_at]
         return comparison
 
-    def print_quality_comparison(self, max_concurrently_available_services=None):
+    def print_quality_comparison(self, metrics=quality_metrics, cutoff_results_at=None):
         """
         For each of the quality metrics, print a table of confidence intervals. One column for each tested classifier
         and one row for each tested recommendation cutoff.
-        @param max_concurrently_available_services: see `self.compare_quality`
+        @param cutoff_results_at: see `self.compare_quality`
+        @param metrics: print comparison only for these metrics
         @return:
         """
-        for metric in quality_metrics:
+        for metric in metrics:
             print "Results for %s" % metric
-            print self.compare_quality(metric, "Confidence interval", max_concurrently_available_services)
+            print self.compare_quality(metric, "Confidence interval", cutoff_results_at)
 
-    def print_quality_comparison_at_cutoff(self, cutoff):
+    def print_quality_comparison_at_cutoff(self, cutoff, metrics=quality_metrics):
         """
-        Print one shared table for all of the quality metrics. One row for each tested classifier, one column for each
-        calculated runtime metric. Print only results for some given cutoff.
+        Print one shared table of confidence intervals for all of the quality metrics. One row for each tested classifier,
+        one column for each calculated quality metric. Cutoff the recommendation results at `cutoff`, i.e. the user is
+        at most shown `cutoff` recommendations.
         @param cutoff: The cutoff for which to print the results.
+        @param metrics: print comparison only for these metrics
         @return:
         """
         comparison = {metric: self.compare_quality(metric, "Confidence interval").loc[cutoff]
-                      for metric in quality_metrics}
-        comparison = pandas.DataFrame(comparison)[quality_metrics]
+                      for metric in metrics}
+        comparison = pandas.DataFrame(comparison)[metrics]
         print comparison
 
-    def print_runtime_comparison(self):
+    def print_runtime_comparison(self, metrics=runtime_metrics):
         """
         Print one shared table of confidence intervals for all runtime metrics. One row for each tested classifier,
         one column for each calculated runtime metric.
+        @param metrics: print comparison only for these metrics
         @return:
         """
-        relevant_columns = [(metric, "Confidence interval") for metric in runtime_metrics]
-        new_column_names = [metric for metric in runtime_metrics]
+        relevant_columns = [(metric, "Confidence interval") for metric in metrics]
+        new_column_names = [metric for metric in metrics]
         comparison = self.runtime_stats[relevant_columns]
         comparison = comparison.rename(columns={old: new for old, new in zip(relevant_columns, new_column_names)})
         print comparison
 
-    def plot_quality_comparison(self, plot_config, max_concurrently_available_services=None):
+    def plot_quality_comparison(self, plot_config, cutoff_results_at=None, metrics=quality_metrics):
         """
         For each of the quality metrics, generate an XY-line-plot with one line for each classifier. The X-axis is the
         number of recommendations that are shown to the user, the Y-axis is the metric of interest. Uses the means of
         the measurements.
         @param plot_config: A function that can be called to get the full path for a plot file.
-        @param max_concurrently_available_services: see `self.compare_quality`
+        @param cutoff_results_at: see `self.compare_quality`
+        @param metrics: plot comparison only for these metrics
         @return:
         """
-        for metric in quality_metrics:
-            results = self.compare_quality(metric, "Mean", max_concurrently_available_services)
+        for metric in metrics:
+            results = self.compare_quality(metric, "Mean", cutoff_results_at)
             plot.plot_quality_comparison(results, metric, plot_config)
 
 

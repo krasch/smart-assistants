@@ -12,9 +12,9 @@ import pandas
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier
 from classifiers.binning import initialize_bins
-from experiment import plot
-from experiment.metrics import QualityMetricsCalculator
-from experiment.experiment_framework import delta_in_ms
+from evaluation import plot
+from evaluation.metrics import QualityMetricsCalculator
+from evaluation.experiment import delta_in_ms
 from dataset import load_dataset_as_sklearn
 
 

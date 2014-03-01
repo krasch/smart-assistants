@@ -41,12 +41,12 @@ def plot_quality_comparison(results, metric, plot_path):
     @return: None
     """
     plt.figure(figsize=(6, 6), dpi=300)
-    plt.ylabel(metric, fontsize=18)
-    plt.xlabel('recommendation cutoff', fontsize=18)
     results.plot(marker=".", colormap="prism")
     if not metric == "# of recommendations":
         plt.ylim(0.0, 1.0)
     plt.xlim(1, plt.xlim()[1])
+    plt.ylabel(metric, fontsize=18)
+    plt.xlabel("Number of recommendations shown", fontsize=18)
     plt.legend(tuple(results.columns.values), loc=4)
     plt.savefig(plot_path(metric))
     plt.close()
