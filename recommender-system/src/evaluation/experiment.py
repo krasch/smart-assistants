@@ -11,8 +11,8 @@ from scipy import stats as scipy_stats
 import pandas
 import numpy
 
-from experiment import plot
-from experiment.metrics import QualityMetricsCalculator, runtime_metrics, quality_metrics
+from evaluation import plot
+from evaluation.metrics import QualityMetricsCalculator, runtime_metrics, quality_metrics
 
 calculated_stats = ["Mean", "Std deviation", "Confidence interval"]
 

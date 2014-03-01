@@ -13,9 +13,9 @@ import os
 import numpy
 import pandas
 
-from experiment.experiment_framework import Experiment
-from experiment.metrics import results_as_dataframe
-from experiment import plot
+from evaluation.experiment_framework import Experiment
+from evaluation.metrics import results_as_dataframe
+from evaluation import plot
 from classifiers.randomc import RandomClassifier
 from classifiers.bayes import NaiveBayesClassifier
 from classifiers.temporal import TemporalEvidencesClassifier, configure_dynamic_cutoff
