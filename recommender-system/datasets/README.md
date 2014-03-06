@@ -26,9 +26,9 @@ The recommender system expects data in a comma-seperated value file (CSV) with f
 
     timestamp, sensor, value
 
-An example (randomly-generated, useless) dataset can be found in file `example.csv`. We use the
-[pandas data analysis library](http://pandas.pydata.org/), which supports several time formats, please see the
-[documentation](http://pandas.pydata.org/pandas-docs/dev/io.html#date-parsing-functions) for more details.
+The first line of the data file must be "timestamp, sensor, value". An example (randomly-generated, useless) dataset can
+be found in file [example.csv](example.csv). We use the [pandas data analysis library](http://pandas.pydata.org/), which
+supports several time formats, please see the [documentation](http://pandas.pydata.org/pandas-docs/dev/io.html#date-parsing-functions) for more details.
 
 Additional configuration options (e.g. to exclude faulty sensors from the dataset) can be set in a config file (optional).
 Please take a look at the "houseA.config" and "houseB.config" to learn which config values you can set.
