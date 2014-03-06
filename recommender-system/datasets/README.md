@@ -1,6 +1,3 @@
-How to use smart home datasets with the recommender system
-======
-
 Importing the houseA and houseB datasets by T.L.M. van Kasteren et al.
 ----------------------
 

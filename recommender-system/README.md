@@ -1,34 +1,86 @@
-Importing the houseA and houseB datasets by T.L.M. van Kasteren et al.
-----------------------
+Introduction
+=============
 
-For evaluation of the recommender system we used the houseA and houseB datasets that are described in:
+This directory contains the source-code for smart home recommender system that was proposed in:
 
-* Accurate Activity Recognition in a Home Setting. T.L.M. van Kasteren, A. K. Noulas, G. Englebienne and B.J.A. Kröse,
-in Proceedings of ACM Tenth International Conference on Ubiquitous Computing (Ubicomp'08). Seoul, South Korea, 2008.
+* Katharina Rasch. [An unsupervised recommender system for smart homes](http://iospress.metapress.com/content/372n5686n0426558/),
+Journal of Ambient Intelligence and Smart Environments, 6 (1): 21-73, 2014
+* Katharina Rasch. [Smart assistants for smart homes](http://www.diva-portal.org/smash/get/diva2:650328/FULLTEXT01.pdf).
+PhD thesis, KTH Royal Institute of Technology, Stockholm, Sweden, 2014
 
-* Transferring Knowledge of Activity Recognition across Sensor Networks, T.L.M. van Kasteren, G.    Englebienne and
-B.J.A. Kröse, In Proceedings of the Eighth International Conference on Pervasive Computing (Pervasive 2010). Helsinki,
-Finland, 2010.
 
-To convert these datasets to a CSV file in the required format:
+Prerequisites
+==============
 
-1. Download the zip archive from https://sites.google.com/site/tim0306/tlDatasets.zip
-2. Open zip archive and extract file tlDatasets/tlDatasets.mat to the current directory 
-3. Run `python converters/kasteren.py tlDatasets.mat`
+The recommender system is written in Python 2.7. All necessary libraries are listed in file [requirements.txt](requirements.txt)
+and can be installed by running:
 
-This will create two files "houseA.csv" and "houseB.csv". The current directory already contains the necessary configuration
-files for these datasets, "houseA.config" and "houseB.config".
+    pip install -f requirements.txt
 
-Using your own datasets
----------------------
+You will also need some smart home dataset that the recommender system can be run on. To get started, it will be easiest
+to download and convert the smart home datasets collected by Tim van Kasteren et al. Please see the Readme file in
+the [datasets](datasets) directory for instructions.
 
-The recommender system expects data in a comma-seperated value file (CSV) with following columns:
 
-    timestamp, sensor, value
+Quick usage
+===========
 
-An example (randomly-generated, useless) dataset can be found in file `example.csv`. We use the
-[pandas data analysis library](http://pandas.pydata.org/), which supports several time formats, please see the
-[documentation](http://pandas.pydata.org/pandas-docs/dev/io.html#date-parsing-functions) for more details.
+To compare the proposed system with a Naive Bayes classifier for the Kasteren "houseA" dataset run:
 
-Additional configuration options (e.g. to exclude faulty sensors from the dataset) can be set in a config file (optional).
-Please take a look at the "houseA.config" and "houseB.config" to learn which config values you can set.
+    cd src
+    python run.py
+
+This should (after a short while) generate output similar to the following:
+
+                      Recall        Precision               F1
+    Our method   0.60 +/- 0.0179  0.65 +/- 0.0328  0.58 +/- 0.0196
+    Naive Bayes  0.48 +/- 0.0343  0.38 +/- 0.0252  0.40 +/- 0.0303
+    Random       0.07 +/- 0.0072  0.27 +/- 0.0307  0.09 +/- 0.0104
+
+    [3 rows x 3 columns]
+
+                    Training time    Overall testing time   Individual testing time
+    Our method   765.32 +/- 17.0273   298.40 +/- 10.4052         1.29 +/- 0.0453
+    Naive Bayes    30.15 +/- 1.1927     48.97 +/- 1.7049         0.21 +/- 0.0073
+    Random          0.03 +/- 0.0026     28.71 +/- 1.9472         0.12 +/- 0.0084
+
+    [3 rows x 3 columns]
+
+The system will also generate some plots that compare the classifiers graphically; you can find those in the "plots/houseA"
+directory.
+
+All generated results are explained in detail in the accompanying paper
+["An unsupervised recommender system for smart homes"](http://iospress.metapress.com/content/372n5686n0426558/).
+
+Further exploration
+===================
+
+Want to run all the other evaluation experiments described in the paper?
+-------------
+
+In file [src/run.py](src/run.py) you can select which experiments should be run. Additional documentation on these
+experiments can be found in [src/evaluation/paper_experiments.py] (src/evaluation/paper_experiments.py) and of course in the paper.
+
+Want to run additional evaluations, e.g. print a confusion matrix?
+-------------------------------
+
+Some additional evaluation methods are implemented in [src/examine.py](src/examine.py).
+
+
+Want to use the houseB dataset instead?
+---------------------------------------
+
+Simply uncomment the relevant lines in [src/run.py](src/run.py) and [src/examine.py](src/examine.py).
+
+Want to used your own data?
+------------------------------
+
+The necessary data format is described in the Readme file in the [datasets](datasets) directory. Make sure to also
+ include your dataset in [src/run.py](src/run.py) and [src/examine.py](src/examine.py).
+
+Want to see the source code for the proposed recommender system?
+------------------------------
+
+You can find it in [src/classifiers/temporal.py](src/classifiers/temporal.py).
+
+
