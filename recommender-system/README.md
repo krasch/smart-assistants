@@ -1,7 +1,13 @@
 Introduction
 =============
 
-This directory contains the source-code for smart home recommender system that was proposed in:
+This directory contains the sourcecode for a recommender system for smart homes that addresses usability issues in
+today's smart homes. The proposed system continuously interpretes the user's current situation and recommends services
+that fit the user's habits, i.e. automate some action that the user would want to perform anyway. These recommendations
+make it possible to build much simpler user interfaces for smart homes. Configuration becomes much more flexible, since
+the system  automatically learns user habits.
+
+The smart home recommender system was proposed in:
 
 * Katharina Rasch. [An unsupervised recommender system for smart homes](http://iospress.metapress.com/content/372n5686n0426558/),
 Journal of Ambient Intelligence and Smart Environments, 6 (1): 21-73, 2014
@@ -18,14 +24,14 @@ and can be installed by running:
     pip install -f requirements.txt
 
 You will also need some smart home dataset that the recommender system can be run on. To get started, it will be easiest
-to download and convert the smart home datasets collected by Tim van Kasteren et al. Please see the Readme file in
+to download and convert the smart home datasets collected by van Kasteren et al. Please see the Readme file in
 the [datasets](datasets) directory for instructions.
 
 
 Quick usage
 ===========
 
-To compare the proposed system with a Naive Bayes classifier for the Kasteren "houseA" dataset run:
+To compare the proposed system with a Naive Bayes classifier using the Kasteren "houseA" dataset, run:
 
     cd src
     python run.py
@@ -45,6 +51,9 @@ This should (after a short while) generate output similar to the following:
     Random          0.03 +/- 0.0026     28.71 +/- 1.9472         0.12 +/- 0.0084
 
     [3 rows x 3 columns]
+
+The exact results in the second table printed depend on the performance of your computer. The results in the first table
+should be very similar to those listed above.
 
 The system will also generate some plots that compare the classifiers graphically; you can find those in the "plots/houseA"
 directory.
@@ -78,7 +87,7 @@ Want to used your own data?
 The necessary data format is described in the Readme file in the [datasets](datasets) directory. Make sure to also
  include your dataset in [src/run.py](src/run.py) and [src/examine.py](src/examine.py).
 
-Want to see the source code for the proposed recommender system?
+Want to see the source code for the proposed system?
 ------------------------------
 
 You can find it in [src/classifiers/temporal.py](src/classifiers/temporal.py).

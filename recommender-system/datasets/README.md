@@ -1,4 +1,4 @@
-Importing the houseA and houseB datasets by T.L.M. van Kasteren et al.
+Importing the houseA and houseB datasets by van Kasteren et al.
 ----------------------
 
 For evaluation of the recommender system we used the houseA and houseB datasets that are described in:
