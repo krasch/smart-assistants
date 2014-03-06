@@ -29,6 +29,8 @@ def initialize_houseA():
                             plot_directory=plot_directory, img_type=img_type)
 
 def initialize_houseB():
+    #This dataset is partially dominated by one of the sensors, which makes the evaluation results less statistically
+    #sound, e.g. it leads to large confidence intervals when running 10-fold cross-validation.
     dataset = load_dataset_as_sklearn("../datasets/houseB.csv", "../datasets/houseB.config")
     return PaperExperiments(dataset, cutoff_results_at=15,
                             plot_directory=plot_directory, img_type=img_type)
@@ -49,13 +51,13 @@ Select the experiments you want to run by commenting/uncommenting.
 #experiment.evaluate_interval_settings()
 
 #scatter conflict versus uncertainty to find regions of uncertainty/conflict where the algorithm is more/less successful
-experiment.scatter_conflict_uncertainty()
+#experiment.scatter_conflict_uncertainty()
 
 #evaluate the benefit of dynamic cutoff methods, i.e. show less recommendations if uncertainty and conflict are low
 #experiment.evaluate_dynamic_cutoff()
 
 #evaluate how the classifiers behave for different sizes of the training dataset
-#experiment.evaluate_training_size()
+experiment.evaluate_training_size()
 
 #evaluate how the proposed recommendation algorithm scales for larger datasets using synthetic data
 #scalability_experiment()

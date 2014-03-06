@@ -156,7 +156,6 @@ class PaperExperiments():
         results = experiment.run(folds=10)
         results.print_quality_comparison(quality_metrics, self.cutoff_results_at)
 
-
     def evaluate_training_size(self):
         """
         Evaluates how the classifiers behave for different sizes of the training dataset. Further details for this
@@ -202,6 +201,7 @@ class PaperExperiments():
                      for cls in experiment.classifiers]
             #combine results of all classifiers for this training dataset, keep only results for cutoff=1
             quality_stats = pandas.concat([quality for quality, runtime in stats], axis=1).loc[1]
+
             results.append(quality_stats)
 
 
@@ -215,6 +215,7 @@ class PaperExperiments():
         for metric in ["Precision", "Recall", "F1"]:
             r = results[interesting_columns(metric)]
             r.columns = [cls.name for cls in experiment.classifiers]
+            r.name = metric
             print metric
             print r
 
@@ -226,6 +227,7 @@ class PaperExperiments():
             r = results[interesting_columns(metric)]
             r.columns = [cls.name for cls in experiment.classifiers]
             plot.plot_train_size(r, metric, plot_conf)
+
 
 def scalability_experiment():
     """

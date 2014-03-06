@@ -22,6 +22,7 @@ As default, the classifier uses bins of width 10 seconds for timedelta ∆t ∈ 
 """
 default_bins = initialize_bins(0, 60, 10) + initialize_bins(60, 300, 30)
 
+#numpy.seterr(all="warn")
 
 class Source():
     """
@@ -110,7 +111,10 @@ class Source():
             weight = counts_sum/max_total * self.__no_temporal_knowledge_discount__
 
         #calculate the mass distribution for the possible targets
-        masses = counts * (weight/counts_sum)
+        if counts_sum == 0:
+            masses = counts
+        else:
+            masses = counts * (weight/counts_sum)
 
         return masses
 
@@ -123,6 +127,11 @@ class Source():
             out += "   %s: %d" % (target, self.total_counts[target_index]) + "\n"
             out += str(["%.3f" % self.temporal_counts[bin][target_index]
                         for bin in range(len(self.temporal_counts))]) + "\n"
+            #data = [self.temporal_counts[bin][target_index] for bin in range(len(self.temporal_counts))]
+            #if sum(data)>0:
+            #    out += "   %s: %d" % (target, self.total_counts[target_index]) + "\n"
+            #    out += str(["%.3f" % self.temporal_counts[bin][target_index]
+            #                for bin in range(len(self.temporal_counts))]) + "\n"
         return out
 
     def __print_source_info__(self, counts, weight, masses):

@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 """
 This module contains some additional functions for exploring the data and the recommendation results produced
-by the different classifiers.
+by the different classifiers. Select dataset and functions to run at the end of this file.
 """
 
 import os
@@ -46,8 +46,8 @@ def plot_observations(data):
 
     conf = plot.plot_config(plot_directory, sub_dirs=[data.name, "observations"], img_type=img_type)
     for source in cls.sources.values():
-        observations = observations_as_dataframe(source.temporal_counts, cls.binning_method.bins)
-        plot.plot_observations(source.source_name(), observations, conf)
+        observations = observations_as_dataframe(source.temporal_counts, cls.bins)
+        plot.plot_observations(source.name(), observations, conf)
 
 
 def confusion_matrix(data):
@@ -58,20 +58,9 @@ def confusion_matrix(data):
     """
 
     cls = TemporalEvidencesClassifier(data.features, data.target_names)
-    #cls = RandomClassifier(data.features, data.target_names)
-
-    time = datetime.datetime.now()
     cls = cls.fit(data.data, data.target)
-    time = datetime.datetime.now() - time
-    #print delta_in_ms(time)
-
-    time = datetime.datetime.now()
     results = cls.predict(data.data)
-    time = datetime.datetime.now() - time
-    #print delta_in_ms(time)
-    #print delta_in_ms(time)/len(data.data)
 
-    """
     matrix = QualityMetricsCalculator(data.target, results).confusion_matrix()
 
     #for pretty printing purposes, replace name of recommendation in columns with single letter,
@@ -85,7 +74,6 @@ def confusion_matrix(data):
     pandas.set_option('expand_frame_repr', False)
     pandas.set_option('max_columns', 40)
     print matrix
-    """
 
 
 def histogram_compare_methods(data):
@@ -136,11 +124,21 @@ def histogram_compare_cutoffs(data):
     plot.comparison_histogram(results, conf)
 
 
-dataset = load_dataset_as_sklearn("../datasets/houseA.csv", "../datasets/houseA.config")
-#dataset = load_dataset_as_sklearn("../datasets/houseB.csv",)
+""" select the dataset to use """
 
-#Show which actions typically follow a given user action.
-plot_observations(dataset)
-#confusion_matrix(dataset)
+dataset = load_dataset_as_sklearn("../datasets/houseA.csv", "../datasets/houseA.config")
+#dataset = load_dataset_as_sklearn("../datasets/houseB.csv","../datasets/houseB.config")
+
+""" select which method to run on this data """
+
+#show which actions typically follow a given user action
+#plot_observations(dataset)
+
+#print a confusion matrix (shows for each action how often each service was recommended)
+confusion_matrix(dataset)
+
+#create a histogram that compares true positives for different classifiers/classifier settings
 #histogram_compare_methods(dataset)
+
+#create a histogram that compares true positives for different cutoffs (how many recommendations are shown)
 #histogram_compare_cutoffs(dataset)

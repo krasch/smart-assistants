@@ -137,7 +137,8 @@ def plot_observations(source, observations, plot_path, plot_best=5):
 
     #perform the plotting
     plt.figure()
-    observations.plot()
-    plt.xlabel("Time since setting changed [seconds]")
-    plt.ylabel("Observed actions (smoothed)")
+    observations.plot(colormap="prism", marker=".")
+    plt.xlabel("Time since setting changed [seconds]", fontsize=18)
+    plt.ylabel("Observed actions (smoothed)", fontsize=18)
+    plt.xlim(10, plt.xlim()[1])
     plt.savefig(plot_path(source))
