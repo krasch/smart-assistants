@@ -14,6 +14,7 @@ Journal of Ambient Intelligence and Smart Environments, 6 (1): 21-73, 2014
 * Katharina Rasch. [Smart assistants for smart homes](http://www.diva-portal.org/smash/get/diva2:650328/FULLTEXT01.pdf).
 PhD thesis, KTH Royal Institute of Technology, Stockholm, Sweden, 2014
 
+(You will probably be a bit lost here, if you have not read at least the first paper, unfortunately.)
 
 Prerequisites
 ==============
