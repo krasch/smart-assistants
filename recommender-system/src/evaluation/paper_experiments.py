@@ -57,8 +57,8 @@ class PaperExperiments():
         experiment.add_classifier(RandomClassifier(self.data.features, self.data.target_names), name="Random")
         results = experiment.run(folds=10)
 
-        results.print_runtime_comparison()
         results.print_quality_comparison_at_cutoff(cutoff=1, metrics=["Recall", "Precision", "F1"])
+        results.print_runtime_comparison()
 
         plot_conf = plot.plot_config(self.plot_directory, sub_dirs=[self.data.name], img_type=self.img_type)
         results.plot_quality_comparison(metrics=["Recall", "Precision", "F1"], plot_config=plot_conf,
