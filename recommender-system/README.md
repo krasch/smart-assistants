@@ -22,7 +22,7 @@ Prerequisites
 The recommender system is written in Python 2.7. All necessary libraries are listed in file [requirements.txt](requirements.txt)
 and can be installed by running:
 
-    pip install -f requirements.txt
+    pip install -r requirements.txt
 
 You will also need some smart home dataset that the recommender system can be run on. To get started, it will be easiest
 to download and convert the smart home datasets collected by van Kasteren et al. Please see the Readme file in
