@@ -94,7 +94,7 @@ def generate_trained_classifier(num_sensors, nominal_values_per_sensor, num_test
         cls = TemporalEvidencesClassifier(features, targets)
 
         #create a random sources for each possible setting
-        cls.sources = {(sensor, value): create_source(sensor, value, len(cls.binning_method.bins))
+        cls.sources = {(sensor, value): create_source(sensor, value, len(cls.bins))
                        for sensor, value in all_settings}
         cls.max_total = max(source.total_counts.sum() for source in cls.sources.values())
         cls.max_temporal = max(source.max_temporal() for source in cls.sources.values())

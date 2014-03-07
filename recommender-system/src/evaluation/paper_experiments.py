@@ -69,19 +69,20 @@ class PaperExperiments():
         """
         Evaluate how the proposed recommender system copes with varying interval widths and Delta t_max settings. Details
         for this experiment can be found in the paper in Section 6.5 and in the Dissertation in Section 5.5.6.
+        There was a bug in the original code that lead to wrong results when there was only one interval in the list of
+        bins (case "Delta t_max=10s").
         """
         print "Comparing different interval settings"
         experiment = Experiment(self.data)
 
         intervals_to_test = [#test various settings for delta t_max
-                             ("Delta t_max=10s",   initialize_bins(start=0, end=10, width=10)),
-                             ("Delta t_max=15s",   initialize_bins(start=0, end=15, width=10)),
-                             ("Delta t_max=30s",   initialize_bins(start=0, end=30, width=10)),
-                             ("Delta t_max=60s",   initialize_bins(start=0, end=60, width=10)),
-                             ("Delta t_max=120s",  initialize_bins(start=0, end=60, width=10) +
-                                                   initialize_bins(start=60, end=120, width=30)),
                              ("Delta t_max=1200s", initialize_bins(start=0, end=60, width=10) +
                                                    initialize_bins(start=60, end=1200, width=30)),
+                             ("Delta t_max=120s",  initialize_bins(start=0, end=60, width=10) +
+                                                   initialize_bins(start=60, end=120, width=30)),
+                             ("Delta t_max=60s",   initialize_bins(start=0, end=60, width=10)),
+                             ("Delta t_max=30s",   initialize_bins(start=0, end=30, width=10)),
+                             ("Delta t_max=10s",   initialize_bins(start=0, end=10, width=10)),
                              #test various interval widths
                              ("all intervals 2s wide",   initialize_bins(start=0, end=300, width=2)),
                              ("all intervals 4s wide",   initialize_bins(start=0, end=300, width=4)),
@@ -154,7 +155,13 @@ class PaperExperiments():
             experiment.add_classifier(TemporalEvidencesClassifier(self.data.features, self.data.target_names,
                                       postprocess=method), name=name)
         results = experiment.run(folds=10)
-        results.print_quality_comparison(quality_metrics, self.cutoff_results_at)
+
+        pandas.set_option('expand_frame_repr', False)
+        pandas.set_option('max_columns', 4)
+        print "Maximum 5 recommendations"
+        results.print_quality_comparison_at_cutoff(cutoff=5, metrics=quality_metrics)
+        print "Maximum 10 recommendations"
+        results.print_quality_comparison_at_cutoff(cutoff=10, metrics=quality_metrics)
 
     def evaluate_training_size(self):
         """
@@ -239,8 +246,8 @@ def scalability_experiment():
 
     #setup necessary to run timeit function
     setup = '''
-from experiment.synthetic import generate_trained_classifier
-from paper_experiments import num_sensors, nominal_values_per_sensor, num_instances
+from evaluation.synthetic import generate_trained_classifier
+from evaluation.paper_experiments import num_sensors, nominal_values_per_sensor, num_instances
 cls, test_data = generate_trained_classifier(num_sensors=num_sensors,\
                                              nominal_values_per_sensor=nominal_values_per_sensor, \
                                              num_test_instances=num_instances)
@@ -256,6 +263,7 @@ cls, test_data = generate_trained_classifier(num_sensors=num_sensors,\
     timer = timeit.Timer('cls.predict(test_data.data)', setup=setup)
     test_time = seconds_to_milliseconds(min(timer.repeat(repeat=3, number=1)))
     test_time_per_instance = test_time / num_instances
+    #print "Total testing time %.4f [ms]" %test_time
     print "Testing time per instance %.4f [ms]" % test_time_per_instance
 
 

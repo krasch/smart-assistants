@@ -127,11 +127,6 @@ class Source():
             out += "   %s: %d" % (target, self.total_counts[target_index]) + "\n"
             out += str(["%.3f" % self.temporal_counts[bin][target_index]
                         for bin in range(len(self.temporal_counts))]) + "\n"
-            #data = [self.temporal_counts[bin][target_index] for bin in range(len(self.temporal_counts))]
-            #if sum(data)>0:
-            #    out += "   %s: %d" % (target, self.total_counts[target_index]) + "\n"
-            #    out += str(["%.3f" % self.temporal_counts[bin][target_index]
-            #                for bin in range(len(self.temporal_counts))]) + "\n"
         return out
 
     def __print_source_info__(self, counts, weight, masses):

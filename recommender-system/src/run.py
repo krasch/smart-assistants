@@ -36,28 +36,29 @@ def initialize_houseB():
                             plot_directory=plot_directory, img_type=img_type)
 
 #evaluate using the Kasteren houseA dataset
-#experiment = initialize_houseA()
+experiment = initialize_houseA()
 #evaluate using the Kasteren houseB dataset
-experiment = initialize_houseB()
+#experiment = initialize_houseB()
 
 """
 Select the experiments you want to run by commenting/uncommenting.
 """
 
 #compare quality and runtimes of several classifiers for one dataset
-#experiment.compare_classifiers()
+experiment.compare_classifiers()
 
 #evaluate how the proposed recommender system copes with varying interval widths and Delta t_max settings.
 #experiment.evaluate_interval_settings()
 
 #scatter conflict versus uncertainty to find regions of uncertainty/conflict where the algorithm is more/less successful
+#the output can be found in the "../plots/<dataset_name>/scatter" directory
 #experiment.scatter_conflict_uncertainty()
 
 #evaluate the benefit of dynamic cutoff methods, i.e. show less recommendations if uncertainty and conflict are low
 #experiment.evaluate_dynamic_cutoff()
 
 #evaluate how the classifiers behave for different sizes of the training dataset
-experiment.evaluate_training_size()
+#experiment.evaluate_training_size()
 
 #evaluate how the proposed recommendation algorithm scales for larger datasets using synthetic data
 #scalability_experiment()

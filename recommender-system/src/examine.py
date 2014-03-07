@@ -131,14 +131,17 @@ dataset = load_dataset_as_sklearn("../datasets/houseA.csv", "../datasets/houseA.
 
 """ select which method to run on this data """
 
-#show which actions typically follow a given user action
+#show which actions typically follow a given user action, the output can be found in the
+# "../plots/<dataset_name>/observations" directory.
 #plot_observations(dataset)
 
 #print a confusion matrix (shows for each action how often each service was recommended)
 confusion_matrix(dataset)
 
-#create a histogram that compares true positives for different classifiers/classifier settings
+#create a histogram that compares true positives for different classifiers/classifier settings. the output can be found
+#in the "../plots/<dataset_name>/" directory.
 #histogram_compare_methods(dataset)
 
-#create a histogram that compares true positives for different cutoffs (how many recommendations are shown)
+#create a histogram that compares true positives for different cutoffs (how many recommendations are shown),  the output
+#can be found in the "../plots/<dataset_name>/" directory
 #histogram_compare_cutoffs(dataset)
