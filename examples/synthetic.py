@@ -2,15 +2,16 @@
 """
 This module contains synthetic dataset generators which can be used to evaluate the scalability of the classifiers.
 """
-
+import sys
+sys.path.append("..")
 import random
 from datetime import datetime, timedelta
 
 import pandas
 import numpy
 
-from dataset import events_to_dataset, dataset_to_sklearn
-from classifiers.temporal import TemporalEvidencesClassifier, Source
+from recsys.dataset import events_to_dataset, dataset_to_sklearn
+from recsys.classifiers.temporal import TemporalEvidencesClassifier, Source
 
 def generate_random_events(sensors, num_events, at_least_one_per_setting=False):
     """
