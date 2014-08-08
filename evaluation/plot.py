@@ -115,7 +115,7 @@ def comparison_histogram(results, plot_path):
 
     results.plot(kind="bar", colormap="Greens")
     plt.subplots_adjust(bottom=0.4)
-    plt.savefig(plot_path("hist"))
+    plt.savefig(plot_path(""))
 
 
 def plot_observations(source, observations, plot_path, plot_best=5):
@@ -142,3 +142,4 @@ def plot_observations(source, observations, plot_path, plot_best=5):
     plt.ylabel("Observed actions (smoothed)", fontsize=18)
     plt.xlim(10, plt.xlim()[1])
     plt.savefig(plot_path(source))
+    plt.close()
