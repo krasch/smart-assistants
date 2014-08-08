@@ -8,16 +8,16 @@ from numpy.testing import assert_array_equal, assert_equal, assert_almost_equal
 from numpy import array
 import pandas
 
-from src.dataset import load_dataset_as_sklearn
-from src.classifiers.temporal import TemporalEvidencesClassifier, Source
+from recsys.dataset import load_dataset
+from recsys.classifiers.temporal import TemporalEvidencesClassifier, Source
 
 
 #synthetically generated event-list with 5 sensor, 3 nominal values per sensor and 500 events
-data_file = "testdata.csv"
+data_file = "test/testdata.csv"
 #contains the observations the classifier should extract from the testdata
-sources_file = "testdata_sources.json"
+sources_file = "test/testdata_sources.json"
 #contains the recommendations the classifier should generate from the test data
-recommendations_file = "testdata_recommendations.json"
+recommendations_file = "test/testdata_recommendations.json"
 
 
 def test_train():
@@ -25,12 +25,12 @@ def test_train():
     Test that the classifier correctly extracts all observations from the test dataset.
     """
     #train the classifier
-    data = load_dataset_as_sklearn(data_file)
+    data = load_dataset(data_file)
     cls = TemporalEvidencesClassifier(data.features, data.target_names)
     cls = cls.fit(data.data, data.target)
 
     #load expected sources and their observations from json file
-    expected_sources = sources_from_json("testdata_sources.json")
+    expected_sources = sources_from_json(sources_file)
 
     #compare expected with actual sources
     assert_array_equal(sorted(cls.sources.keys()), sorted(expected_sources.keys()),)
@@ -44,7 +44,7 @@ def test_recommend():
     """
 
     #train the classifier and calculate recommendations
-    data = load_dataset_as_sklearn(data_file)
+    data = load_dataset(data_file)
     cls = TemporalEvidencesClassifier(data.features, data.target_names)
     cls = cls.fit(data.data, data.target)
     actual_recommendations = cls.predict(data.data, include_conflict_theta=True)

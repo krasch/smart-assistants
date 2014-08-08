@@ -4,7 +4,7 @@ This module tests if metrics such as precision and recall are calculated correct
 
 from numpy.testing import assert_almost_equal
 
-from src.evaluation.metrics import *
+from evaluation.metrics import *
 
 
 """

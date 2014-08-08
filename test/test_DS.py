@@ -6,7 +6,7 @@ import numpy
 from numpy.testing import assert_almost_equal
 from profilehooks import profile
 
-from src.classifiers.DS import combine_dempsters_rule
+from recsys.classifiers.DS import combine_dempsters_rule
 
 def test_simple_mass_distribution():
     distributions = [numpy.array([0.3, 0.4, 0.2]), numpy.array([0.1, 0.1, 0.4])]
@@ -19,7 +19,7 @@ def test_simple_mass_distribution():
     assert_almost_equal(conflict, expected_conflict)
     assert_almost_equal(theta, expected_theta)
 
-@profile
+#@profile
 def test_runtime():
     def normalized_random_vector(length):
         v=numpy.random.randint(1,10,length)
