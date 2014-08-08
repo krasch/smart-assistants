@@ -13,6 +13,19 @@ import pandas
 
 def load_dataset(path_to_csv, path_to_config=None):
     """
+    This function reads an event-list dataset and returns a dataset according to the scikit-learn dataset format. This
+    dataset be used to train and test the recommendation classifiers.
+    @param path_to_csv: The csv file that contains the dataset. The data must be formatted in three columns:
+    "timestamp", "sensor", "value". The timestamp must be in a format that is readable by pandas.
+    @param path_to_config: Path where an optional config file can be found. Please look at the file "houseA.config" for
+    how to structure this file.
+    @return: The resulting dataset, see `dataset_to_sklearn`.
+    """
+    data = load_dataset_raw(path_to_csv, path_to_config)
+    return dataset_to_sklearn(data)
+
+def load_dataset_raw(path_to_csv, path_to_config=None):
+    """
     This function reads an event-list dataset and returns a dataset that lists for all event timestamps the current
     settings of all available sensors. Please see `events_to_dataset` for more information on the resulting dataset.
     @param path_to_csv: The csv file that contains the dataset. The data must be formatted in three columns:
@@ -57,22 +70,7 @@ def load_dataset(path_to_csv, path_to_config=None):
     events = pandas.read_csv(path_to_csv, parse_dates=["timestamp"])
     data = events_to_dataset(events, name, excluded_sensors, excluded_services)
     return data
-
-
-def load_dataset_as_sklearn(path_to_csv, path_to_config=None):
-    """
-    This function reads an event-list dataset and returns a dataset according to the scikit-learn dataset format. This
-    dataset be used to train and test the recommendation classifiers.
-    @param path_to_csv: The csv file that contains the dataset. The data must be formatted in three columns:
-    "timestamp", "sensor", "value". The timestamp must be in a format that is readable by pandas.
-    @param path_to_config: Path where an optional config file can be found. Please look at the file "houseA.config" for
-    how to structure this file.
-    @return: The resulting dataset, see `dataset_to_sklearn`.
-    """
-    data = load_dataset(path_to_csv, path_to_config)
-    return dataset_to_sklearn(data)
-
-
+    
 def events_to_dataset(events, name, excluded_sensors, excluded_actions):
     """
     Convert an event-list dataset and return a dataset that lists for all event timestamps the next user action, the
@@ -273,7 +271,7 @@ def write_dataset_as_arff(data, path_to_arff):
     """
     Convert the dataset into the arff format that is used by the weka machine learning framework. The resulting file
     can be loaded into dataset and different machine learning algorithms can be tested.
-    @param data: The dataset as produced by `load_dataset`.
+    @param data: The dataset as produced by `load_dataset_raw`.
     @param path_to_arff: The file to which the resulting arff should be written.
     @return: None
     """
