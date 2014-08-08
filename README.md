@@ -1,13 +1,11 @@
-Introduction
-=============
+## Introduction
 
-This directory contains the sourcecode for a recommender system for smart homes that addresses usability issues in
-today's smart homes. The proposed system continuously interpretes the user's current situation and recommends services
-that fit the user's habits, i.e. automate some action that the user would want to perform anyway. These recommendations
-make it possible to build much simpler user interfaces for smart homes. Configuration becomes much more flexible, since
-the system  automatically learns user habits.
+This repository contains some of the code I wrote during my PhD studies. In particular it contains the implementation
+of a recommender system for smart homes that aims to improve smart home usability through personalisation. To do that,
+the recommender system continuously interprets the user's current situation and recommends services
+that fit the user's habits, i.e. automate some action that the user would want to perform anyway. 
 
-The smart home recommender system was proposed in:
+More information can be found here:
 
 * Katharina Rasch. [An unsupervised recommender system for smart homes](http://iospress.metapress.com/content/372n5686n0426558/),
 Journal of Ambient Intelligence and Smart Environments, 6 (1): 21-73, 2014
@@ -16,26 +14,26 @@ PhD thesis, KTH Royal Institute of Technology, Stockholm, Sweden, 2014
 
 (You will probably be a bit lost here, if you have not read at least the first paper, unfortunately.)
 
-Prerequisites
-==============
+## Prerequisites
 
 The recommender system is written in Python 2.7. All necessary libraries are listed in file [requirements.txt](requirements.txt)
 and can be installed by running:
 
     pip install -r requirements.txt
 
+## Smart home datasets
+
 You will also need some smart home dataset that the recommender system can be run on. To get started, it will be easiest
 to download and convert the smart home datasets collected by van Kasteren et al. Please see the Readme file in
 the [datasets](datasets) directory for instructions.
 
 
-Quick usage
-===========
+## Quick usage
 
 To compare the proposed system with a Naive Bayes classifier using the Kasteren "houseA" dataset, run:
 
-    cd src
-    python run.py
+    cd examples
+    python compare_classifiers.py
 
 This should (after a short while) generate output similar to the following:
 
@@ -62,35 +60,23 @@ directory.
 All generated results are explained in detail in the accompanying paper
 ["An unsupervised recommender system for smart homes"](http://iospress.metapress.com/content/372n5686n0426558/).
 
-Further exploration
-===================
+## Further exploration
 
-Want to run all the other evaluation experiments described in the paper?
+##### Want to run all the other evaluation experiments described in the paper?
 -------------
 
-In file [src/run.py](src/run.py) you can select which experiments should be run. Additional documentation on these
-experiments can be found in [src/evaluation/paper_experiments.py] (src/evaluation/paper_experiments.py) and of course in the paper.
-
-Want to run additional evaluations, e.g. print a confusion matrix?
--------------------------------
-
-Some additional evaluation methods are implemented in [src/examine.py](src/examine.py).
+Scripts for all experiments can be found in the [examples](examples) directory. The examples directory also contains additional evaluations not described in the paper, e.g. for printing a confusion matrix. 
 
 
-Want to use the houseB dataset instead?
----------------------------------------
-
-Simply uncomment the relevant lines in [src/run.py](src/run.py) and [src/examine.py](src/examine.py).
-
-Want to used your own data?
+##### Want to used your own data?
 ------------------------------
 
 The necessary data format is described in the Readme file in the [datasets](datasets) directory. Make sure to also
- include your dataset in [src/run.py](src/run.py) and [src/examine.py](src/examine.py).
+ include your dataset in script you want to run in the [examples](examples) directory.
 
-Want to see the source code for the proposed system?
+##### Want to see the core sourcecode for the proposed recommender system?
 ------------------------------
 
-You can find it in [src/classifiers/temporal.py](src/classifiers/temporal.py).
+You can find it in [recsys/classifiers/temporal.py](recsys/classifiers/temporal.py).
 
 
